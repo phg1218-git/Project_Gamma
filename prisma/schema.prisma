@@ -1,0 +1,299 @@
+// ============================================
+// 이어줌 (Connecting) — Prisma Schema
+// ============================================
+// Database: PostgreSQL (Neon free tier)
+// All enums use English identifiers; Korean labels are in app constants.
+// Dates stored as DateTime; age is computed at query time.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // For Prisma Migrate (bypasses Neon pooler)
+}
+
+// ── Auth.js Required Models ───────────────────────────────
+// These models follow the Auth.js Prisma adapter specification exactly.
+// Do NOT rename fields — Auth.js depends on these names.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String  // "oauth" | "credentials" etc.
+  provider          String  // "google" | "naver" | "kakao"
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── User Model ────────────────────────────────────────────
+// Core user identity. Links to Profile, SurveyResponse, etc.
+// `profileComplete` gates access — users must complete profile on first login.
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String?   @unique
+  emailVerified   DateTime?
+  image           String?
+  profileComplete Boolean   @default(false) // Forces profile setup flow
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  accounts       Account[]
+  sessions       Session[]
+  profile        Profile?
+  surveyResponse SurveyResponse?
+  sentMatches    Match[]      @relation("MatchSender")
+  receivedMatches Match[]     @relation("MatchReceiver")
+  chatThreadsA   ChatThread[] @relation("ThreadUserA")
+  chatThreadsB   ChatThread[] @relation("ThreadUserB")
+  messages       Message[]
+}
+
+// ── Profile Model ─────────────────────────────────────────
+// Structured dating profile. All enum fields reference app-level enums.
+// `stopMatching` allows users to opt out without deleting their account.
+
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ─ Basic Info ─
+  gender        Gender           // 성별
+  dateOfBirth   DateTime         // 생년월일 (age calculated dynamically)
+  nickname      String   @db.VarChar(20) // 닉네임 (anonymous display name)
+
+  // ─ Job ─
+  jobCategory   JobCategory      // 직업 대분류
+  jobDetail     String   @db.VarChar(50) // 직업 상세 (자유입력)
+
+  // ─ Locations ─
+  // Stored as "province|district" format (e.g., "서울특별시|강남구")
+  companyLocation   String @db.VarChar(50) // 직장 소재지
+  residenceLocation String @db.VarChar(50) // 거주지
+  hometownLocation  String @db.VarChar(50) // 출신지
+
+  // ─ Personality & Lifestyle ─
+  personality String   @db.VarChar(200)  // 성격 자유 서술
+  hobbies     String[] // 취미 (다중 선택, string array)
+  preferences String[] // 선호사항 (다중 선택)
+
+  // ─ Attributes ─
+  mbti      MBTI
+  bloodType BloodType
+  religion  Religion
+  drinking  DrinkingLevel
+  smoking   SmokingLevel
+
+  // ─ Matching Control ─
+  dislikedConditions String[] // 비선호 파트너 조건 (다중)
+  stopMatching       Boolean  @default(false) // 매칭 중단 여부
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stopMatching]) // Fast filter for active users
+  @@index([gender])
+}
+
+// ── Survey Response Model ──────────────────────────────────
+// Stores all survey answers as a JSON blob.
+// Structure validated by Zod on the API layer.
+// Using Json type for flexibility — survey questions may evolve.
+
+model SurveyResponse {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // JSON blob: { questionId: answer, ... }
+  // Validated against survey schema at API level.
+  answers Json
+
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Match Model ────────────────────────────────────────────
+// Records a computed match between two users.
+// Stores the total score and a breakdown for transparency.
+
+model Match {
+  id         String      @id @default(cuid())
+  senderId   String      // User who initiated (or was computed for)
+  receiverId String      // The matched candidate
+  score      Float       // Total compatibility score (0-100)
+  breakdown  Json        // { surveySimilarity, lifestyle, values, personality }
+  status     MatchStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  sender   User @relation("MatchSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("MatchReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  chatThread ChatThread? // A match can optionally spawn a chat
+
+  @@unique([senderId, receiverId]) // One match record per pair direction
+  @@index([senderId, status])
+  @@index([receiverId, status])
+  @@index([score])
+}
+
+// ── Chat Thread Model ──────────────────────────────────────
+// Anonymous 1:1 chat between two matched users.
+// Created when both users accept a match.
+
+model ChatThread {
+  id        String   @id @default(cuid())
+  matchId   String   @unique // Links back to the match that spawned this chat
+  userAId   String
+  userBId   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userA    User      @relation("ThreadUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB    User      @relation("ThreadUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userAId])
+  @@index([userBId])
+}
+
+// ── Message Model ──────────────────────────────────────────
+// Individual message within a chat thread.
+// Polling-based: client fetches new messages periodically.
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  senderId  String
+  content   String   @db.VarChar(1000) // Max 1000 chars per message
+  readAt    DateTime? // null = unread
+  createdAt DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt]) // Efficient message pagination
+  @@index([senderId])
+}
+
+// ── Enums ──────────────────────────────────────────────────
+// All enum values are English identifiers.
+// Korean display labels are maintained in src/constants/enums.ts
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum JobCategory {
+  OFFICE        // 사무/행정
+  IT            // IT/개발
+  DESIGN        // 디자인
+  MARKETING     // 마케팅/광고
+  SALES         // 영업
+  FINANCE       // 금융/회계
+  EDUCATION     // 교육
+  MEDICAL       // 의료/보건
+  LAW           // 법률
+  ENGINEERING   // 공학/기술
+  MEDIA         // 미디어/방송
+  SERVICE       // 서비스업
+  PUBLIC        // 공무원/공공
+  FREELANCE     // 프리랜서
+  STUDENT       // 학생
+  OTHER         // 기타
+}
+
+enum MBTI {
+  ISTJ
+  ISFJ
+  INFJ
+  INTJ
+  ISTP
+  ISFP
+  INFP
+  INTP
+  ESTP
+  ESFP
+  ENFP
+  ENTP
+  ESTJ
+  ESFJ
+  ENFJ
+  ENTJ
+}
+
+enum BloodType {
+  A
+  B
+  O
+  AB
+}
+
+enum Religion {
+  NONE          // 무교
+  CHRISTIANITY  // 기독교
+  CATHOLICISM   // 천주교
+  BUDDHISM      // 불교
+  OTHER         // 기타
+}
+
+enum DrinkingLevel {
+  NEVER         // 전혀 안 함
+  RARELY        // 거의 안 함
+  SOMETIMES     // 가끔
+  OFTEN         // 자주
+}
+
+enum SmokingLevel {
+  NEVER         // 비흡연
+  QUIT          // 금연 중
+  SOMETIMES     // 가끔
+  OFTEN         // 흡연
+}
+
+enum MatchStatus {
+  PENDING       // 매칭 대기
+  ACCEPTED      // 수락됨
+  REJECTED      // 거절됨
+  EXPIRED       // 만료됨
+}

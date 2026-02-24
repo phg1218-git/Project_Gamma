@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * 이어줌 (Connecting) — Global Styles
+ * Romantic pink theme with soft gradients and Korean typography.
+ */
+
+@layer base {
+  /* Import Pretendard font (Korean-optimized) */
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Subtle romantic gradient background */
+    background-image: linear-gradient(
+      180deg,
+      hsl(340, 100%, 99%) 0%,
+      hsl(340, 30%, 99%) 100%
+    );
+    min-height: 100vh;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Selection color — pink tint */
+  ::selection {
+    background-color: hsl(340, 82%, 90%);
+    color: hsl(340, 60%, 22%);
+  }
+}
+
+@layer components {
+  /* ── Romantic Card Style ── */
+  .card-romantic {
+    @apply bg-white rounded-2xl shadow-sm border border-pink-100;
+    @apply hover:shadow-md transition-shadow duration-300;
+  }
+
+  /* ── Gradient Button ── */
+  .btn-gradient {
+    @apply bg-gradient-pink text-white font-medium rounded-full;
+    @apply px-6 py-2.5 shadow-sm;
+    @apply hover:shadow-md hover:brightness-105 transition-all duration-200;
+  }
+
+  /* ── Heart Pulse Animation ── */
+  .heart-pulse {
+    @apply animate-heart-beat text-primary;
+  }
+
+  /* ── Page Container ── */
+  .page-container {
+    @apply container mx-auto px-4 py-6 max-w-lg;
+  }
+
+  /* ── Score Bar ── */
+  .score-bar {
+    @apply h-2 rounded-full bg-pink-100 overflow-hidden;
+  }
+  .score-bar-fill {
+    @apply h-full rounded-full bg-gradient-pink transition-all duration-500;
+  }
+
+  /* ── Chat Bubble ── */
+  .chat-bubble-mine {
+    @apply bg-primary text-white rounded-2xl rounded-br-sm px-4 py-2;
+  }
+  .chat-bubble-theirs {
+    @apply bg-pink-50 text-foreground rounded-2xl rounded-bl-sm px-4 py-2;
+  }
+}
+
+@layer utilities {
+  /* ── Gradient text ── */
+  .text-gradient-pink {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(340, 82%, 52%) 0%,
+      hsl(350, 80%, 62%) 100%
+    );
+  }
+
+  /* ── Glass morphism effect ── */
+  .glass {
+    @apply bg-white/70 backdrop-blur-md;
+  }
+}
