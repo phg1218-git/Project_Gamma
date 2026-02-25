@@ -51,7 +51,6 @@ export default function ProfileSetupPage() {
       ? "성격은 10자 이상 작성해주세요."
       : null;
 
-
   function splitLocation(location?: string | null) {
     if (!location) return ["", ""] as const;
     const [province = "", district = ""] = location.split("|");
