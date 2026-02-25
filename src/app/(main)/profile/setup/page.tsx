@@ -18,6 +18,7 @@ export default function ProfileSetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [personalityTouched, setPersonalityTouched] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -42,6 +43,12 @@ export default function ProfileSetupPage() {
     smoking: "",
     dislikedConditions: [] as string[],
   });
+
+  const personalityError =
+    (personalityTouched || form.personality.length > 0) &&
+    form.personality.length < 10
+      ? "성격은 10자 이상 작성해주세요."
+      : null;
 
   // Toggle a value in a multi-select array
   function toggleArrayItem(field: "hobbies" | "preferences" | "dislikedConditions", value: string) {
@@ -249,12 +256,20 @@ export default function ProfileSetupPage() {
           <textarea
             value={form.personality}
             onChange={(e) => setForm((p) => ({ ...p, personality: e.target.value }))}
+            onBlur={() => setPersonalityTouched(true)}
             placeholder="나의 성격을 자유롭게 소개해주세요 (10-200자)"
             maxLength={200}
             rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm resize-none"
+            className={`w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 text-sm resize-none ${
+              personalityError
+                ? "border-destructive focus:ring-destructive/30"
+                : "border-pink-200 focus:ring-primary/30"
+            }`}
             required
           />
+          {personalityError && (
+            <p className="text-xs text-destructive mt-1">{personalityError}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">{form.personality.length}/200</p>
         </div>
 
@@ -427,7 +442,7 @@ export default function ProfileSetupPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || form.personality.length < 10}
           className="btn-gradient w-full disabled:opacity-50"
         >
           {loading ? "저장 중..." : "프로필 저장"}
