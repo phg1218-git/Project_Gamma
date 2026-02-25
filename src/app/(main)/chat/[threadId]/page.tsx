@@ -149,7 +149,7 @@ export default function ChatThreadPage() {
   }
 
   return (
-    <div className="h-[calc(100dvh-8.5rem)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-12.5rem)] flex flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-pink-100">
         <div className="flex items-center gap-3">
           <button
