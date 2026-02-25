@@ -52,7 +52,9 @@ const KakaoProvider = {
   type: "oauth" as const,
   authorization: {
     url: "https://kauth.kakao.com/oauth/authorize",
-    params: { response_type: "code" },
+    params: { 
+        scope: "profile_nickname account_email",
+     },
   },
   token: "https://kauth.kakao.com/oauth/token",
   userinfo: "https://kapi.kakao.com/v2/user/me",
