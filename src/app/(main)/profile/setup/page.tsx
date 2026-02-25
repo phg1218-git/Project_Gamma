@@ -99,7 +99,13 @@ export default function ProfileSetupPage() {
         }
       } else if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "프로필 생성에 실패했습니다.");
+
+        // Zod details를 사람이 읽을 수 있게 합쳐서 표시
+        const details =
+          Array.isArray(data?.details)
+            ? data.details.map((e: any) => e.message).join("\n")
+            : "";
+        throw new Error(`${data.error || "프로필 생성에 실패했습니다."}\n${details}`);
       }
 
       router.push("/survey");
