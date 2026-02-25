@@ -107,8 +107,10 @@ const config: Config = {
       // ── Animations ──
       keyframes: {
         "heart-beat": {
-          "0%, 100%": { transform: "scale(1)" },
-          "50%": { transform: "scale(1.1)" },
+          "0%, 100%": { transform: "scale(1)", opacity: "0.9" },
+          "25%": { transform: "scale(1.08)", opacity: "1" },
+          "40%": { transform: "scale(1)", opacity: "0.95" },
+          "60%": { transform: "scale(1.12)", opacity: "1" },
         },
         "fade-in": {
           "0%": { opacity: "0", transform: "translateY(10px)" },
@@ -120,7 +122,7 @@ const config: Config = {
         },
       },
       animation: {
-        "heart-beat": "heart-beat 1.5s ease-in-out infinite",
+        "heart-beat": "heart-beat 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite",
         "fade-in": "fade-in 0.5s ease-out",
         "slide-up": "slide-up 0.6s ease-out",
       },

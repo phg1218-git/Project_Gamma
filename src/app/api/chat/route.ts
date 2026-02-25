@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { MAX_ACTIVE_CHATS_PER_USER } from "@/lib/constants";
 
-/**
- * Chat Threads API
- *
- * GET /api/chat — List all chat threads for the current user
- */
+function resolveThreadStatus(thread: { status: "OPEN" | "CLOSED"; isActive: boolean; closedAt: Date | null }): "OPEN" | "CLOSED" {
+  // Backward-compatible fallback: if legacy isActive=true, keep chat OPEN unless explicitly closed timestamp exists
+  if (thread.isActive && !thread.closedAt) return "OPEN";
+  return thread.status;
+}
 
 export async function GET() {
   try {
@@ -17,20 +18,17 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    // Fetch all threads where the user is a participant
     const threads = await prisma.chatThread.findMany({
       where: {
         OR: [{ userAId: userId }, { userBId: userId }],
-        isActive: true,
       },
       include: {
         userA: { include: { profile: { select: { nickname: true } } } },
         userB: { include: { profile: { select: { nickname: true } } } },
         messages: {
           orderBy: { createdAt: "desc" },
-          take: 1, // Only get the latest message for preview
+          take: 1,
         },
-        // Count unread messages
         _count: {
           select: {
             messages: {
@@ -45,9 +43,17 @@ export async function GET() {
       orderBy: { updatedAt: "desc" },
     });
 
-    // Format response
+    const activeCount = await prisma.chatThread.count({
+      where: {
+        OR: [
+          { status: "OPEN" },
+          { AND: [{ isActive: true }, { closedAt: null }] },
+        ],
+        AND: [{ OR: [{ userAId: userId }, { userBId: userId }] }],
+      },
+    });
+
     const formattedThreads = threads.map((thread) => {
-      // Determine the partner (the other user)
       const isUserA = thread.userAId === userId;
       const partner = isUserA ? thread.userB : thread.userA;
       const lastMessage = thread.messages[0];
@@ -60,10 +66,17 @@ export async function GET() {
         lastMessageAt: lastMessage?.createdAt.toISOString() || null,
         unreadCount: thread._count.messages,
         isActive: thread.isActive,
+        status: resolveThreadStatus(thread),
+        closedAt: thread.closedAt?.toISOString() || null,
       };
     });
 
-    return NextResponse.json({ threads: formattedThreads });
+    return NextResponse.json({
+      threads: formattedThreads,
+      activeChatCount: activeCount,
+      maxActiveChats: MAX_ACTIVE_CHATS_PER_USER,
+      atCapacity: activeCount >= MAX_ACTIVE_CHATS_PER_USER,
+    });
   } catch (error) {
     console.error("[Chat GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
