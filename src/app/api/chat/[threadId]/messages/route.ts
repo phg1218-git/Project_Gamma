@@ -19,6 +19,11 @@ interface RouteContext {
   params: Promise<{ threadId: string }>;
 }
 
+function isThreadOpen(thread: { status: "OPEN" | "CLOSED"; isActive: boolean; closedAt: Date | null }) {
+  if (thread.isActive && !thread.closedAt) return true;
+  return thread.status === "OPEN";
+}
+
 // ── GET: Fetch messages with optional cursor ──
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -110,7 +115,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    if (thread.status !== "OPEN") {
+    if (!isThreadOpen(thread)) {
       return NextResponse.json(
         { error: "종료된 채팅방에는 메시지를 보낼 수 없습니다.", code: "CHAT_CLOSED" },
         { status: 403 },

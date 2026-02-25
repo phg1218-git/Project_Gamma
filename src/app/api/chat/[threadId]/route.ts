@@ -6,6 +6,11 @@ interface RouteContext {
   params: Promise<{ threadId: string }>;
 }
 
+
+function resolveThreadStatus(thread: { status: "OPEN" | "CLOSED"; isActive: boolean; closedAt: Date | null }): "OPEN" | "CLOSED" {
+  if (thread.isActive && !thread.closedAt) return "OPEN";
+  return thread.status;
+}
 export async function GET(_request: Request, context: RouteContext) {
   try {
     const session = await auth();
@@ -23,6 +28,8 @@ export async function GET(_request: Request, context: RouteContext) {
       select: {
         id: true,
         status: true,
+
+        isActive: true,
         closedAt: true,
         endedByUserId: true,
       },
@@ -34,6 +41,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return NextResponse.json({
       ...thread,
+
+      status: resolveThreadStatus(thread),
       closedAt: thread.closedAt?.toISOString() || null,
     });
   } catch (error) {
@@ -62,7 +71,7 @@ export async function PATCH(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    if (thread.status === "CLOSED") {
+    if (resolveThreadStatus(thread) === "CLOSED") {
       return NextResponse.json({
         id: thread.id,
         status: thread.status,

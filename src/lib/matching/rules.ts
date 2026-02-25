@@ -17,8 +17,11 @@ export function isMatchScoreGloballyBlocked(score: number): boolean {
 export async function getActiveChatCount(userId: string): Promise<number> {
   return prisma.chatThread.count({
     where: {
-      status: "OPEN",
-      OR: [{ userAId: userId }, { userBId: userId }],
+      OR: [
+        { status: "OPEN" },
+        { AND: [{ isActive: true }, { closedAt: null }] },
+      ],
+      AND: [{ OR: [{ userAId: userId }, { userBId: userId }] }],
     },
   });
 }

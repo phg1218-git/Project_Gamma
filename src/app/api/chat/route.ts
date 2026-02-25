@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { MAX_ACTIVE_CHATS_PER_USER } from "@/lib/constants";
 
+function resolveThreadStatus(thread: { status: "OPEN" | "CLOSED"; isActive: boolean; closedAt: Date | null }): "OPEN" | "CLOSED" {
+  // Backward-compatible fallback: if legacy isActive=true, keep chat OPEN unless explicitly closed timestamp exists
+  if (thread.isActive && !thread.closedAt) return "OPEN";
+  return thread.status;
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -39,8 +45,11 @@ export async function GET() {
 
     const activeCount = await prisma.chatThread.count({
       where: {
-        status: "OPEN",
-        OR: [{ userAId: userId }, { userBId: userId }],
+        OR: [
+          { status: "OPEN" },
+          { AND: [{ isActive: true }, { closedAt: null }] },
+        ],
+        AND: [{ OR: [{ userAId: userId }, { userBId: userId }] }],
       },
     });
 
@@ -57,7 +66,7 @@ export async function GET() {
         lastMessageAt: lastMessage?.createdAt.toISOString() || null,
         unreadCount: thread._count.messages,
         isActive: thread.isActive,
-        status: thread.status,
+        status: resolveThreadStatus(thread),
         closedAt: thread.closedAt?.toISOString() || null,
       };
     });
