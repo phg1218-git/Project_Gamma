@@ -10,6 +10,8 @@ export interface ChatThreadData {
   lastMessageAt?: string;
   unreadCount: number;
   isActive: boolean;
+  status: "OPEN" | "CLOSED";
+  closedAt: string | null;
 }
 
 export interface MessageData {

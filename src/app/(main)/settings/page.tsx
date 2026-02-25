@@ -1,44 +1,80 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Heart, LogOut, PauseCircle, PlayCircle } from "lucide-react";
 
-/**
- * Settings Page
- *
- * Account management:
- * - Toggle stopMatching
- * - Sign out
- */
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [stopMatching, setStopMatching] = useState(false);
+  const [minMatchScore, setMinMatchScore] = useState(50);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  async function toggleStopMatching() {
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/profile");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setStopMatching(Boolean(data.stopMatching));
+        setMinMatchScore(typeof data.minMatchScore === "number" ? data.minMatchScore : 50);
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function updateProfile(payload: { stopMatching?: boolean; minMatchScore?: number }) {
     setSaving(true);
+    setMessage(null);
     try {
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stopMatching: !stopMatching }),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        setStopMatching(!stopMatching);
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "설정을 저장하지 못했습니다.");
+        return;
       }
+
+      if (typeof data.stopMatching === "boolean") {
+        setStopMatching(data.stopMatching);
+      }
+      if (typeof data.minMatchScore === "number") {
+        setMinMatchScore(data.minMatchScore);
+      }
+      setMessage("설정이 저장되었습니다.");
     } catch (error) {
-      console.error("Failed to toggle matching:", error);
+      console.error("Failed to update profile:", error);
+      setMessage("설정을 저장하지 못했습니다.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function toggleStopMatching() {
+    await updateProfile({ stopMatching: !stopMatching });
+  }
+
+  async function saveMinScore() {
+    const clamped = Math.max(0, Math.min(100, Math.trunc(minMatchScore)));
+    setMinMatchScore(clamped);
+    await updateProfile({ minMatchScore: clamped });
   }
 
   return (
     <div className="animate-fade-in space-y-4">
       <h1 className="text-xl font-bold">설정</h1>
 
-      {/* User Info */}
       <div className="card-romantic p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center">
@@ -51,7 +87,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Matching Toggle */}
       <div className="card-romantic p-4">
         <button
           onClick={toggleStopMatching}
@@ -85,7 +120,34 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Sign Out */}
+      <div className="card-romantic p-4 space-y-3">
+        <div>
+          <p className="text-sm font-medium">최소 매칭 점수</p>
+          <p className="text-xs text-muted-foreground">0~100 사이의 값 · 최소 50 이상 권장</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={minMatchScore}
+            onChange={(e) => setMinMatchScore(Number(e.target.value))}
+            className="flex-1 px-3 py-2 rounded-xl border border-pink-200 text-sm"
+          />
+          <button
+            onClick={saveMinScore}
+            disabled={saving}
+            className="btn-gradient text-sm px-4 disabled:opacity-50"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <div className="card-romantic p-3 text-sm text-center text-muted-foreground">{message}</div>
+      )}
+
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
         className="card-romantic p-4 w-full flex items-center gap-3 hover:bg-pink-50/50 transition-colors"

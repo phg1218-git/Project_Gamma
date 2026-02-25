@@ -105,6 +105,15 @@ export const profileSchema = z.object({
     .max(5, "비선호 조건은 최대 5개까지 선택 가능합니다.")
     .default([]),
 
+
+
+  minMatchScore: z
+    .number()
+    .int("최소 매칭 점수는 정수여야 합니다.")
+    .min(0, "최소 매칭 점수는 0 이상이어야 합니다.")
+    .max(100, "최소 매칭 점수는 100 이하여야 합니다.")
+    .default(50),
+
   stopMatching: z.boolean().default(false),
 });
 

@@ -4,14 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Heart, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp } from "lucide-react";
 import { JOB_CATEGORY_LABELS } from "@/constants/enums";
 
-/**
- * Matches Page
- *
- * Displays ranked match results with score breakdowns.
- * Users can accept or reject matches.
- * Refresh button triggers re-computation.
- */
-
 interface MatchData {
   matchId: string;
   userId: string;
@@ -36,14 +28,24 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [activeChatCount, setActiveChatCount] = useState(0);
+  const [maxActiveChats, setMaxActiveChats] = useState(4);
+  const [atCapacity, setAtCapacity] = useState(false);
 
   const fetchMatches = useCallback(async () => {
     try {
-      const res = await fetch("/api/matches");
-      if (res.ok) {
-        const data = await res.json();
+      const [matchesRes, chatRes] = await Promise.all([fetch("/api/matches"), fetch("/api/chat")]);
+      if (matchesRes.ok) {
+        const data = await matchesRes.json();
         setMatches(data.matches || []);
         setMessage(data.message || null);
+      }
+
+      if (chatRes.ok) {
+        const chatData = await chatRes.json();
+        setActiveChatCount(chatData.activeChatCount ?? 0);
+        setMaxActiveChats(chatData.maxActiveChats ?? 4);
+        setAtCapacity(Boolean(chatData.atCapacity));
       }
     } catch (error) {
       console.error("Failed to fetch matches:", error);
@@ -67,19 +69,31 @@ export default function MatchesPage() {
   }
 
   async function handleAction(matchId: string, status: "ACCEPTED" | "REJECTED") {
+    setMessage(null);
     try {
       const res = await fetch("/api/matches", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchId, status }),
       });
-      if (res.ok) {
-        setMatches((prev) =>
-          prev.map((m) => (m.matchId === matchId ? { ...m, status } : m)),
-        );
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "매칭 상태를 변경하지 못했습니다.");
+        return;
+      }
+
+      setMatches((prev) =>
+        prev.map((m) => (m.matchId === matchId ? { ...m, status } : m)),
+      );
+
+      if (typeof data.activeChatCount === "number") {
+        setActiveChatCount(data.activeChatCount);
+        setAtCapacity(data.activeChatCount >= maxActiveChats);
       }
     } catch (error) {
       console.error("Failed to update match:", error);
+      setMessage("매칭 상태를 변경하지 못했습니다.");
     }
   }
 
@@ -93,13 +107,10 @@ export default function MatchesPage() {
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">매칭 결과</h1>
-          <p className="text-sm text-muted-foreground">
-            {matches.length}명의 추천 상대
-          </p>
+          <p className="text-sm text-muted-foreground">{matches.length}명의 추천 상대</p>
         </div>
         <button
           onClick={handleRefresh}
@@ -110,9 +121,16 @@ export default function MatchesPage() {
         </button>
       </div>
 
+      <div className="card-romantic p-3 mb-4">
+        <p className="text-xs text-muted-foreground">
+          활성 채팅 {activeChatCount}/{maxActiveChats}
+          {atCapacity ? " · 한도 도달로 새 채팅 생성이 제한됩니다." : ""}
+        </p>
+      </div>
+
       {message && (
-        <div className="card-romantic p-4 mb-4 text-center">
-          <p className="text-sm text-muted-foreground">{message}</p>
+        <div className="card-romantic p-4 mb-4 text-center border-destructive/30 bg-red-50">
+          <p className="text-sm text-destructive">{message}</p>
         </div>
       )}
 
@@ -127,7 +145,6 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Match Cards */}
       <div className="space-y-4">
         {matches.map((match) => (
           <MatchCard
@@ -135,6 +152,7 @@ export default function MatchesPage() {
             match={match}
             onAccept={() => handleAction(match.matchId, "ACCEPTED")}
             onReject={() => handleAction(match.matchId, "REJECTED")}
+            disableAccept={atCapacity}
           />
         ))}
       </div>
@@ -142,44 +160,37 @@ export default function MatchesPage() {
   );
 }
 
-// ── Match Card Component ──
 function MatchCard({
   match,
   onAccept,
   onReject,
+  disableAccept,
 }: {
   match: MatchData;
   onAccept: () => void;
   onReject: () => void;
+  disableAccept: boolean;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   return (
     <div className="card-romantic overflow-hidden">
-      {/* Score Header */}
       <div className="bg-gradient-pink px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-white">
           <Heart size={16} fill="white" strokeWidth={0} />
           <span className="text-sm font-medium">호환도</span>
         </div>
-        <span className="text-xl font-bold text-white">
-          {match.totalScore.toFixed(1)}점
-        </span>
+        <span className="text-xl font-bold text-white">{match.totalScore.toFixed(1)}점</span>
       </div>
 
-      {/* Profile Info */}
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-            <span className="text-lg font-bold text-primary">
-              {match.nickname.charAt(0)}
-            </span>
+            <span className="text-lg font-bold text-primary">{match.nickname.charAt(0)}</span>
           </div>
           <div>
             <h3 className="font-semibold">{match.nickname}</h3>
-            <p className="text-xs text-muted-foreground">
-              {match.age}세
-            </p>
+            <p className="text-xs text-muted-foreground">{match.age}세</p>
           </div>
         </div>
 
@@ -194,7 +205,6 @@ function MatchCard({
           </span>
         </div>
 
-        {/* Score Breakdown Toggle */}
         <button
           onClick={() => setShowBreakdown(!showBreakdown)}
           className="flex items-center gap-1 text-xs text-primary font-medium mb-2"
@@ -212,7 +222,6 @@ function MatchCard({
           </div>
         )}
 
-        {/* Action Buttons */}
         {match.status === "PENDING" && (
           <div className="flex gap-2">
             <button
@@ -221,7 +230,12 @@ function MatchCard({
             >
               넘기기
             </button>
-            <button onClick={onAccept} className="flex-1 btn-gradient text-sm">
+            <button
+              onClick={onAccept}
+              disabled={disableAccept}
+              className="flex-1 btn-gradient text-sm disabled:opacity-50"
+              title={disableAccept ? "활성 채팅 한도 도달" : undefined}
+            >
               관심있어요
             </button>
           </div>
@@ -241,7 +255,6 @@ function MatchCard({
   );
 }
 
-// ── Score Bar Component ──
 function ScoreBar({ label, value, max }: { label: string; value: number; max: number }) {
   const percentage = max > 0 ? (value / max) * 100 : 0;
   return (

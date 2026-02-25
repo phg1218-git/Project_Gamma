@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { findMatches, saveMatchResults } from "@/lib/matching/engine";
+import {
+  getActiveChatCount,
+  getUserMatchThreshold,
+  hasReachedActiveChatCapacity,
+  isMatchScoreGloballyBlocked,
+} from "@/lib/matching/rules";
+import { MAX_ACTIVE_CHATS_PER_USER } from "@/lib/constants";
 
-/**
- * Matches API Routes
- *
- * GET  /api/matches — Get match results (triggers computation if stale)
- * POST /api/matches — Force re-computation of matches
- * PATCH /api/matches — Update match status (accept/reject)
- */
-
-// ── GET: Fetch match results ──
 export async function GET() {
   try {
     const session = await auth();
@@ -19,7 +17,6 @@ export async function GET() {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    // Fetch existing matches for this user
     const matches = await prisma.match.findMany({
       where: { senderId: session.user.id },
       include: {
@@ -31,7 +28,6 @@ export async function GET() {
       take: 20,
     });
 
-    // If no matches exist, compute them
     if (matches.length === 0) {
       try {
         const results = await findMatches(session.user.id, 10);
@@ -39,7 +35,6 @@ export async function GET() {
           await saveMatchResults(session.user.id, results);
         }
 
-        // Re-fetch after saving
         const newMatches = await prisma.match.findMany({
           where: { senderId: session.user.id },
           include: {
@@ -51,9 +46,8 @@ export async function GET() {
           take: 20,
         });
 
-        return NextResponse.json(formatMatches(newMatches, session.user.id));
+        return NextResponse.json(formatMatches(newMatches));
       } catch (matchError) {
-        // If matching fails (e.g., no survey), return empty with message
         return NextResponse.json({
           matches: [],
           message: (matchError as Error).message,
@@ -61,14 +55,13 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(formatMatches(matches, session.user.id));
+    return NextResponse.json(formatMatches(matches));
   } catch (error) {
     console.error("[Matches GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
   }
 }
 
-// ── POST: Force re-compute matches ──
 export async function POST() {
   try {
     const session = await auth();
@@ -91,7 +84,6 @@ export async function POST() {
   }
 }
 
-// ── PATCH: Update match status (accept/reject) ──
 export async function PATCH(request: Request) {
   try {
     const session = await auth();
@@ -108,11 +100,14 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Verify the match belongs to this user
     const match = await prisma.match.findFirst({
       where: {
         id: matchId,
         OR: [{ senderId: session.user.id }, { receiverId: session.user.id }],
+      },
+      include: {
+        sender: { include: { profile: { select: { minMatchScore: true } } } },
+        receiver: { include: { profile: { select: { minMatchScore: true } } } },
       },
     });
 
@@ -120,14 +115,50 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "매칭을 찾을 수 없습니다." }, { status: 404 });
     }
 
+    if (status === "ACCEPTED") {
+      const senderThreshold = await getUserMatchThreshold(match.senderId);
+      const receiverThreshold = await getUserMatchThreshold(match.receiverId);
+      const effectiveThreshold = Math.max(senderThreshold, receiverThreshold);
+
+      if (isMatchScoreGloballyBlocked(match.score)) {
+        return NextResponse.json(
+          { error: "점수가 50점 이하인 매칭은 수락할 수 없습니다.", code: "MATCH_SCORE_BLOCKED_GLOBAL" },
+          { status: 409 },
+        );
+      }
+
+      if (match.score < effectiveThreshold) {
+        return NextResponse.json(
+          {
+            error: `매칭 점수가 최소 기준(${effectiveThreshold}점)에 미달합니다.`,
+            code: "MATCH_SCORE_BELOW_USER_THRESHOLD",
+          },
+          { status: 409 },
+        );
+      }
+
+      const [senderAtCapacity, receiverAtCapacity] = await Promise.all([
+        hasReachedActiveChatCapacity(match.senderId),
+        hasReachedActiveChatCapacity(match.receiverId),
+      ]);
+
+      if (senderAtCapacity || receiverAtCapacity) {
+        return NextResponse.json(
+          {
+            error: `활성 채팅은 최대 ${MAX_ACTIVE_CHATS_PER_USER}개까지 가능합니다.`,
+            code: "ACTIVE_CHAT_CAPACITY_REACHED",
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     const updated = await prisma.match.update({
       where: { id: matchId },
       data: { status },
     });
 
-    // If both users accepted, create a chat thread
     if (status === "ACCEPTED") {
-      // Check if the reverse match is also accepted
       const reverseMatch = await prisma.match.findFirst({
         where: {
           senderId: match.receiverId,
@@ -137,25 +168,37 @@ export async function PATCH(request: Request) {
       });
 
       if (reverseMatch) {
-        // Both accepted — create chat thread
-        await prisma.chatThread.create({
-          data: {
-            matchId: match.id,
-            userAId: match.senderId,
-            userBId: match.receiverId,
+        const existingThread = await prisma.chatThread.findFirst({
+          where: {
+            OR: [
+              { userAId: match.senderId, userBId: match.receiverId },
+              { userAId: match.receiverId, userBId: match.senderId },
+            ],
           },
         });
+
+        if (!existingThread) {
+          await prisma.chatThread.create({
+            data: {
+              matchId: match.id,
+              userAId: match.senderId,
+              userBId: match.receiverId,
+              status: "OPEN",
+              isActive: true,
+            },
+          });
+        }
       }
     }
 
-    return NextResponse.json(updated);
+    const activeCount = await getActiveChatCount(session.user.id);
+    return NextResponse.json({ ...updated, activeChatCount: activeCount });
   } catch (error) {
     console.error("[Matches PATCH]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
   }
 }
 
-// ── Helper: Format match records for API response ──
 function formatMatches(
   matches: Array<{
     id: string;
@@ -173,7 +216,6 @@ function formatMatches(
       } | null;
     };
   }>,
-  _currentUserId: string,
 ) {
   return {
     matches: matches.map((m) => {

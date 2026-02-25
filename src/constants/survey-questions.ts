@@ -124,9 +124,9 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     id: "ls_spending_habits",
     type: "slider",
     category: "lifestyle",
-    label: "소비 성향은? (절약 vs 투자)",
+    label: "소비 성향은? (절약형 vs 소비형)",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "절약형", maxLabel: "투자형" },
+    slider: { min: 1, max: 10, step: 1, minLabel: "절약형", maxLabel: "소비형" },
   },
   {
     id: "ls_cleanliness",
