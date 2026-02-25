@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { GENDER_LABELS, JOB_CATEGORY_LABELS, MBTI_OPTIONS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS, HOBBY_OPTIONS, PREFERENCE_OPTIONS, DISLIKED_CONDITIONS } from "@/constants/enums";
@@ -18,6 +18,8 @@ export default function ProfileSetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [personalityTouched, setPersonalityTouched] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   // Form state
   const [form, setForm] = useState({
@@ -42,6 +44,113 @@ export default function ProfileSetupPage() {
     smoking: "",
     dislikedConditions: [] as string[],
   });
+
+  const personalityError =
+    (personalityTouched || form.personality.length > 0) &&
+    form.personality.length < 10
+      ? "성격은 10자 이상 작성해주세요."
+      : null;
+
+
+  function splitLocation(location?: string | null) {
+    if (!location) return ["", ""] as const;
+    const [province = "", district = ""] = location.split("|");
+    return [province, district] as const;
+  }
+
+  function isFormPristine(currentForm: typeof form) {
+    return (
+      currentForm.gender === "" &&
+      currentForm.dateOfBirth === "" &&
+      currentForm.nickname === "" &&
+      currentForm.jobCategory === "" &&
+      currentForm.jobDetail === "" &&
+      currentForm.companyProvince === "" &&
+      currentForm.companyDistrict === "" &&
+      currentForm.residenceProvince === "" &&
+      currentForm.residenceDistrict === "" &&
+      currentForm.hometownProvince === "" &&
+      currentForm.hometownDistrict === "" &&
+      currentForm.personality === "" &&
+      currentForm.hobbies.length === 0 &&
+      currentForm.preferences.length === 0 &&
+      currentForm.mbti === "" &&
+      currentForm.bloodType === "" &&
+      currentForm.religion === "" &&
+      currentForm.drinking === "" &&
+      currentForm.smoking === "" &&
+      currentForm.dislikedConditions.length === 0
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/profile");
+
+        if (cancelled) return;
+
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        if (res.status === 404) {
+          return;
+        }
+
+        if (!res.ok) {
+          return;
+        }
+
+        const profile = await res.json();
+
+        if (cancelled) return;
+
+        const [companyProvince, companyDistrict] = splitLocation(profile.companyLocation);
+        const [residenceProvince, residenceDistrict] = splitLocation(profile.residenceLocation);
+        const [hometownProvince, hometownDistrict] = splitLocation(profile.hometownLocation);
+
+        setForm((prev) => {
+          if (!isFormPristine(prev)) return prev;
+
+          return {
+            ...prev,
+            gender: profile.gender ?? "",
+            dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().slice(0, 10) : "",
+            nickname: profile.nickname ?? "",
+            jobCategory: profile.jobCategory ?? "",
+            jobDetail: profile.jobDetail ?? "",
+            companyProvince,
+            companyDistrict,
+            residenceProvince,
+            residenceDistrict,
+            hometownProvince,
+            hometownDistrict,
+            personality: profile.personality ?? "",
+            hobbies: Array.isArray(profile.hobbies) ? profile.hobbies : [],
+            preferences: Array.isArray(profile.preferences) ? profile.preferences : [],
+            mbti: profile.mbti ?? "",
+            bloodType: profile.bloodType ?? "",
+            religion: profile.religion ?? "",
+            drinking: profile.drinking ?? "",
+            smoking: profile.smoking ?? "",
+            dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
+          };
+        });
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Toggle a value in a multi-select array
   function toggleArrayItem(field: "hobbies" | "preferences" | "dislikedConditions", value: string) {
@@ -114,6 +223,10 @@ export default function ProfileSetupPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (profileLoading) {
+    return <div className="animate-fade-in" />;
   }
 
   return (
@@ -249,12 +362,20 @@ export default function ProfileSetupPage() {
           <textarea
             value={form.personality}
             onChange={(e) => setForm((p) => ({ ...p, personality: e.target.value }))}
+            onBlur={() => setPersonalityTouched(true)}
             placeholder="나의 성격을 자유롭게 소개해주세요 (10-200자)"
             maxLength={200}
             rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm resize-none"
+            className={`w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 text-sm resize-none ${
+              personalityError
+                ? "border-destructive focus:ring-destructive/30"
+                : "border-pink-200 focus:ring-primary/30"
+            }`}
             required
           />
+          {personalityError && (
+            <p className="text-xs text-destructive mt-1">{personalityError}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">{form.personality.length}/200</p>
         </div>
 
@@ -427,7 +548,7 @@ export default function ProfileSetupPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || form.personality.length < 10}
           className="btn-gradient w-full disabled:opacity-50"
         >
           {loading ? "저장 중..." : "프로필 저장"}
