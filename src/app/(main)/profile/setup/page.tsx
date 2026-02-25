@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { GENDER_LABELS, JOB_CATEGORY_LABELS, MBTI_OPTIONS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS, HOBBY_OPTIONS, PREFERENCE_OPTIONS, DISLIKED_CONDITIONS } from "@/constants/enums";
@@ -19,6 +19,7 @@ export default function ProfileSetupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [personalityTouched, setPersonalityTouched] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   // Form state
   const [form, setForm] = useState({
@@ -49,6 +50,106 @@ export default function ProfileSetupPage() {
     form.personality.length < 10
       ? "성격은 10자 이상 작성해주세요."
       : null;
+
+  function splitLocation(location?: string | null) {
+    if (!location) return ["", ""] as const;
+    const [province = "", district = ""] = location.split("|");
+    return [province, district] as const;
+  }
+
+  function isFormPristine(currentForm: typeof form) {
+    return (
+      currentForm.gender === "" &&
+      currentForm.dateOfBirth === "" &&
+      currentForm.nickname === "" &&
+      currentForm.jobCategory === "" &&
+      currentForm.jobDetail === "" &&
+      currentForm.companyProvince === "" &&
+      currentForm.companyDistrict === "" &&
+      currentForm.residenceProvince === "" &&
+      currentForm.residenceDistrict === "" &&
+      currentForm.hometownProvince === "" &&
+      currentForm.hometownDistrict === "" &&
+      currentForm.personality === "" &&
+      currentForm.hobbies.length === 0 &&
+      currentForm.preferences.length === 0 &&
+      currentForm.mbti === "" &&
+      currentForm.bloodType === "" &&
+      currentForm.religion === "" &&
+      currentForm.drinking === "" &&
+      currentForm.smoking === "" &&
+      currentForm.dislikedConditions.length === 0
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/profile");
+
+        if (cancelled) return;
+
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        if (res.status === 404) {
+          return;
+        }
+
+        if (!res.ok) {
+          return;
+        }
+
+        const profile = await res.json();
+
+        if (cancelled) return;
+
+        const [companyProvince, companyDistrict] = splitLocation(profile.companyLocation);
+        const [residenceProvince, residenceDistrict] = splitLocation(profile.residenceLocation);
+        const [hometownProvince, hometownDistrict] = splitLocation(profile.hometownLocation);
+
+        setForm((prev) => {
+          if (!isFormPristine(prev)) return prev;
+
+          return {
+            ...prev,
+            gender: profile.gender ?? "",
+            dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().slice(0, 10) : "",
+            nickname: profile.nickname ?? "",
+            jobCategory: profile.jobCategory ?? "",
+            jobDetail: profile.jobDetail ?? "",
+            companyProvince,
+            companyDistrict,
+            residenceProvince,
+            residenceDistrict,
+            hometownProvince,
+            hometownDistrict,
+            personality: profile.personality ?? "",
+            hobbies: Array.isArray(profile.hobbies) ? profile.hobbies : [],
+            preferences: Array.isArray(profile.preferences) ? profile.preferences : [],
+            mbti: profile.mbti ?? "",
+            bloodType: profile.bloodType ?? "",
+            religion: profile.religion ?? "",
+            drinking: profile.drinking ?? "",
+            smoking: profile.smoking ?? "",
+            dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
+          };
+        });
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Toggle a value in a multi-select array
   function toggleArrayItem(field: "hobbies" | "preferences" | "dislikedConditions", value: string) {
@@ -121,6 +222,10 @@ export default function ProfileSetupPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (profileLoading) {
+    return <div className="animate-fade-in" />;
   }
 
   return (
