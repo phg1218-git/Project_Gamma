@@ -210,6 +210,11 @@ function QuestionCard({
   onChange: (val: number | string | string[]) => void;
   onToggleMulti: (option: string) => void;
 }) {
+  const sliderDefault = question.slider
+    ? Math.max(question.slider.min, Math.min(5, question.slider.max))
+    : 5;
+  const sliderValue = typeof value === "number" ? value : sliderDefault;
+
   return (
     <div className="card-romantic p-4">
       <label className="block text-sm font-semibold mb-3">{question.label}</label>
@@ -221,15 +226,13 @@ function QuestionCard({
             min={question.slider.min}
             max={question.slider.max}
             step={question.slider.step}
-            value={(value as number) || question.slider.min}
+            value={sliderValue}
             onChange={(e) => onChange(Number(e.target.value))}
             className="w-full accent-primary"
           />
           <div className="flex justify-between mt-1">
             <span className="text-xs text-muted-foreground">{question.slider.minLabel}</span>
-            <span className="text-sm font-medium text-primary">
-              {(value as number) || question.slider.min}
-            </span>
+            <span className="text-sm font-medium text-primary">{sliderValue}</span>
             <span className="text-xs text-muted-foreground">{question.slider.maxLabel}</span>
           </div>
         </div>

@@ -1,24 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { passesHardFilters } from "./filters";
 import { computeCompatibilityScore, type ScoreBreakdown } from "./scoring";
-
-/**
- * 이어줌 — Core Matching Engine
- *
- * Orchestrates the full matching pipeline:
- *   1. Fetch the requesting user's profile and survey
- *   2. Fetch all active candidate profiles + surveys
- *   3. Apply hard filters (eliminate incompatible candidates)
- *   4. Compute soft scores for remaining candidates
- *   5. Rank by total score descending
- *   6. Return top N matches with score breakdowns
- *
- * Performance Note (Neon free tier):
- *   - With a small user base, fetching all candidates and filtering
- *     in-memory is acceptable.
- *   - For scale (1000+ users), push hard filters into SQL queries
- *     and paginate candidates.
- */
+import { getUserMatchThreshold, isMatchScoreGloballyBlocked } from "./rules";
 
 export interface MatchResult {
   userId: string;
@@ -29,18 +12,10 @@ export interface MatchResult {
   score: ScoreBreakdown;
 }
 
-/**
- * Find the best matches for a user.
- *
- * @param userId - The requesting user's ID
- * @param limit  - Max number of matches to return (default: 10)
- * @returns Ranked array of MatchResult
- */
 export async function findMatches(
   userId: string,
   limit: number = 10,
 ): Promise<MatchResult[]> {
-  // 1. Get requesting user's profile and survey
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -53,8 +28,8 @@ export async function findMatches(
     throw new Error("프로필과 설문을 모두 완료해야 매칭이 가능합니다.");
   }
 
-  // 2. Fetch all candidates with completed profiles and surveys
-  //    Exclude users who have stopped matching
+  const userThreshold = await getUserMatchThreshold(userId);
+
   const candidates = await prisma.user.findMany({
     where: {
       id: { not: userId },
@@ -72,13 +47,11 @@ export async function findMatches(
     },
   });
 
-  // 3. Apply hard filters
   const filteredCandidates = candidates.filter((candidate) => {
     if (!candidate.profile) return false;
     return passesHardFilters(user.profile!, candidate.profile);
   });
 
-  // 4. Score each candidate
   const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
 
   const scoredCandidates: MatchResult[] = filteredCandidates
@@ -90,7 +63,6 @@ export async function findMatches(
       const score = computeCompatibilityScore(userAnswers, candidateAnswers);
       const profile = candidate.profile!;
 
-      // Calculate age dynamically
       const today = new Date();
       const birth = new Date(profile.dateOfBirth);
       let age = today.getFullYear() - birth.getFullYear();
@@ -99,7 +71,6 @@ export async function findMatches(
         age--;
       }
 
-      // Extract province from location
       const [residenceProvince] = profile.residenceLocation.split("|");
 
       return {
@@ -111,24 +82,27 @@ export async function findMatches(
         score,
       };
     })
-    // 5. Sort by total score descending
+    .filter((candidate) => {
+      if (isMatchScoreGloballyBlocked(candidate.score.total)) return false;
+      return candidate.score.total >= userThreshold;
+    })
     .sort((a, b) => b.score.total - a.score.total);
 
-  // 6. Return top N
   return scoredCandidates.slice(0, limit);
 }
 
-/**
- * Save match results to the database.
- * Creates Match records for the top candidates.
- */
 export async function saveMatchResults(
   userId: string,
   results: MatchResult[],
 ): Promise<void> {
-  // Use a transaction for atomicity
+  const userThreshold = await getUserMatchThreshold(userId);
+  const eligibleResults = results.filter((result) => {
+    if (isMatchScoreGloballyBlocked(result.score.total)) return false;
+    return result.score.total >= userThreshold;
+  });
+
   await prisma.$transaction(
-    results.map((result) =>
+    eligibleResults.map((result) =>
       prisma.match.upsert({
         where: {
           senderId_receiverId: {

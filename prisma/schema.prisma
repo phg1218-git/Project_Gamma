@@ -121,6 +121,7 @@ model Profile {
   smoking   SmokingLevel
 
   // ─ Matching Control ─
+  minMatchScore      Int      @default(50)
   dislikedConditions String[] // 비선호 파트너 조건 (다중)
   stopMatching       Boolean  @default(false) // 매칭 중단 여부
 
@@ -128,6 +129,7 @@ model Profile {
   updatedAt DateTime @updatedAt
 
   @@index([stopMatching]) // Fast filter for active users
+  @@index([minMatchScore])
   @@index([gender])
 }
 
@@ -184,6 +186,9 @@ model ChatThread {
   userAId   String
   userBId   String
   isActive  Boolean  @default(true)
+  status    ChatStatus @default(OPEN)
+  closedAt  DateTime?
+  endedByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -194,6 +199,8 @@ model ChatThread {
 
   @@index([userAId])
   @@index([userBId])
+  @@index([userAId, status])
+  @@index([userBId, status])
 }
 
 // ── Message Model ──────────────────────────────────────────
@@ -296,4 +303,9 @@ enum MatchStatus {
   ACCEPTED      // 수락됨
   REJECTED      // 거절됨
   EXPIRED       // 만료됨
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
 }

@@ -95,3 +95,10 @@
     @apply bg-white/70 backdrop-blur-md;
   }
 }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .heart-pulse {
+    animation: none !important;
+  }
+}

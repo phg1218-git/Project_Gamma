@@ -102,13 +102,19 @@ export async function POST(request: Request, context: RouteContext) {
     const thread = await prisma.chatThread.findFirst({
       where: {
         id: threadId,
-        isActive: true,
         OR: [{ userAId: userId }, { userBId: userId }],
       },
     });
 
     if (!thread) {
-      return NextResponse.json({ error: "채팅방을 찾을 수 없거나 비활성화되었습니다." }, { status: 404 });
+      return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    if (thread.status !== "OPEN") {
+      return NextResponse.json(
+        { error: "종료된 채팅방에는 메시지를 보낼 수 없습니다.", code: "CHAT_CLOSED" },
+        { status: 403 },
+      );
     }
 
     // Validate message content
