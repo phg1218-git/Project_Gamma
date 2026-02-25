@@ -19,6 +19,8 @@ interface ThreadData {
   lastMessageAt: string | null;
   unreadCount: number;
   isActive: boolean;
+  status: "OPEN" | "CLOSED";
+  closedAt: string | null;
 }
 
 export default function ChatListPage() {
@@ -93,12 +95,18 @@ export default function ChatListPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {thread.lastMessage || "대화를 시작해보세요!"}
+                  {thread.status === "CLOSED" ? "종료된 채팅" : (thread.lastMessage || "대화를 시작해보세요!")}
                 </p>
               </div>
 
               {/* Unread Badge */}
-              {thread.unreadCount > 0 && (
+              {thread.status === "CLOSED" && (
+                <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-muted-foreground shrink-0">
+                  Closed
+                </span>
+              )}
+
+              {thread.unreadCount > 0 && thread.status === "OPEN" && (
                 <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
                   <span className="text-[10px] font-bold text-white">
                     {thread.unreadCount > 9 ? "9+" : thread.unreadCount}
