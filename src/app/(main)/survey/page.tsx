@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, ChevronRight, ChevronLeft } from "lucide-react";
 import { SURVEY_CATEGORIES, getQuestionsByCategory, type SurveyQuestion } from "@/constants/survey-questions";
@@ -23,6 +23,54 @@ export default function SurveyPage() {
   const currentCategory = categories[currentStep];
   const questions = getQuestionsByCategory(currentCategory.id);
   const progress = ((currentStep + 1) / categories.length) * 100;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [currentStep]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSurvey() {
+      try {
+        const res = await fetch("/api/survey");
+
+        if (cancelled) return;
+
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        if (res.status === 404) {
+          return;
+        }
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = await res.json();
+        const existingAnswers = data?.answers;
+
+        if (
+          existingAnswers &&
+          typeof existingAnswers === "object" &&
+          !Array.isArray(existingAnswers)
+        ) {
+          setAnswers((prev) => (Object.keys(prev).length === 0 ? existingAnswers : prev));
+        }
+      } catch {
+        // ignore prefill failure and keep empty survey for first-time input
+      }
+    }
+
+    loadSurvey();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   function updateAnswer(questionId: string, value: number | string | string[]) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
