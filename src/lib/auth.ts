@@ -134,6 +134,7 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user }) {
       if (!user.id) return true;
       await syncAdminRoleForEmail(user.id, user.email);
+
       try {
         await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
       } catch (error) {
@@ -144,6 +145,7 @@ export const authConfig: NextAuthConfig = {
     },
     async session({ session, user }) {
       if (session.user) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
         session.user.id = user.id;
         try {
           const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
