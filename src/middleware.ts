@@ -36,7 +36,8 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/match") || // NOTE: your app uses /match (not /matches) per earlier plan
     pathname.startsWith("/matches") || // keep both just in case
     pathname.startsWith("/chat") ||
-    pathname.startsWith("/settings");
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/admin");
 
   if (!isProtected) return NextResponse.next();
 
@@ -67,5 +68,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/profile/:path*", "/survey/:path*", "/match/:path*", "/matches/:path*", "/chat/:path*", "/settings/:path*"],
+  matcher: ["/profile/:path*", "/survey/:path*", "/match/:path*", "/matches/:path*", "/chat/:path*", "/settings/:path*", "/admin/:path*"],
 };
