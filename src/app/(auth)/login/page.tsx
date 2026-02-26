@@ -30,7 +30,7 @@ export default function LoginPage() {
         <div className="space-y-3">
           {/* Google */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/profile" })}
+            onClick={() => signIn("google", { callbackUrl: "/after-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@ export default function LoginPage() {
 
           {/* Naver */}
           <button
-            onClick={() => signIn("naver", { callbackUrl: "/profile" })}
+            onClick={() => signIn("naver", { callbackUrl: "/after-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium transition-colors"
             style={{ backgroundColor: "#03C75A" }}
           >
@@ -68,7 +68,7 @@ export default function LoginPage() {
 
           {/* Kakao */}
           <button
-            onClick={() => signIn("kakao", { callbackUrl: "/profile" })}
+            onClick={() => signIn("kakao", { callbackUrl: "/after-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
             style={{ backgroundColor: "#FEE500", color: "#191919" }}
           >
