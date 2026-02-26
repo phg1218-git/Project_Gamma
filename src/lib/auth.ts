@@ -134,15 +134,29 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user }) {
       if (!user.id) return true;
       await syncAdminRoleForEmail(user.id, user.email);
-      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+      try {
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      } catch (error) {
+        // Migration not applied yet: don't block auth callback.
+        console.warn("[auth] Failed to update lastLoginAt. Did you run latest Prisma migration?", error);
+      }
       return true;
     },
     async session({ session, user }) {
       if (session.user) {
         const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
         session.user.id = user.id;
-        session.user.role = dbUser?.role;
-        session.user.status = dbUser?.status;
+        try {
+          const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
+          session.user.role = dbUser?.role;
+          session.user.status = dbUser?.status;
+        } catch (error) {
+          // Migration not applied yet: keep session available.
+          session.user.role = undefined;
+          session.user.status = undefined;
+          console.warn("[auth] Failed to read role/status. Did you run latest Prisma migration?", error);
+        }
       }
       return session;
     },

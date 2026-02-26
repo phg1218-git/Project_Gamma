@@ -38,10 +38,16 @@ export async function syncAdminRoleForEmail(userId: string, email?: string | nul
   if (!email) return;
   if (!getAdminEmails().includes(email.toLowerCase())) return;
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role: "ADMIN", status: "ACTIVE", suspendedAt: null },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: "ADMIN", status: "ACTIVE", suspendedAt: null },
+    });
+  } catch (error) {
+    // If DB migration is not applied yet, do not block login.
+    // (Unknown argument `role` / missing column errors)
+    console.warn("[admin] Failed to sync admin role. Did you run latest Prisma migration?", error);
+  }
 }
 
 export async function writeAuditLog(params: {
