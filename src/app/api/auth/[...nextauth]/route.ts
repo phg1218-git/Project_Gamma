@@ -1,4 +1,4 @@
-export const runtime = 'nodejs'; // 이 줄을 추가
+export const runtime = 'nodejs'; // 이 줄을 추가 
 import { handlers } from "@/lib/auth";
 
 /**
