@@ -5,7 +5,7 @@
   "description": "이어줌 (Connecting) — Anonymous dating matchmaking platform",
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
