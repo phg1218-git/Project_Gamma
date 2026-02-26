@@ -1,13 +1,11 @@
 import "next-auth";
 
-/**
- * Extend Auth.js session types.
- * Adds user.id to the session object.
- */
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      role?: "USER" | "ADMIN";
+      status?: "ACTIVE" | "SUSPENDED" | "DELETED";
       name?: string | null;
       email?: string | null;
       image?: string | null;

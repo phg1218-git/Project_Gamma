@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import type { NextAuthConfig } from "next-auth";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
 import { prisma } from "@/lib/prisma";
+import { syncAdminRoleForEmail } from "@/lib/admin";
 
 /* =========================
    NAVER PROVIDER
@@ -130,9 +131,18 @@ export const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
-    session({ session, user }) {
+    async signIn({ user }) {
+      if (!user.id) return true;
+      await syncAdminRoleForEmail(user.id, user.email);
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      return true;
+    },
+    async session({ session, user }) {
       if (session.user) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
         session.user.id = user.id;
+        session.user.role = dbUser?.role;
+        session.user.status = dbUser?.status;
       }
       return session;
     },
