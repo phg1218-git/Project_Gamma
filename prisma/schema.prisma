@@ -4,7 +4,7 @@
 
 generator client {
   provider = "prisma-client-js"
-
+  //추가
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
