@@ -1,4 +1,3 @@
-export const runtime = 'nodejs'; // 이 줄을 추가 
 // middleware.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
