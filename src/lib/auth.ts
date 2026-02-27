@@ -101,6 +101,8 @@ function KakaoProvider(
 ========================= */
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma),
 
   providers: [
@@ -145,14 +147,12 @@ export const authConfig: NextAuthConfig = {
     },
     async session({ session, user }) {
       if (session.user) {
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
         session.user.id = user.id;
         try {
           const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true, status: true } });
           session.user.role = dbUser?.role;
           session.user.status = dbUser?.status;
         } catch (error) {
-          // Migration not applied yet: keep session available.
           session.user.role = undefined;
           session.user.status = undefined;
           console.warn("[auth] Failed to read role/status. Did you run latest Prisma migration?", error);
