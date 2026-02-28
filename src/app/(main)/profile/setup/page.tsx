@@ -43,6 +43,8 @@ export default function ProfileSetupPage() {
     drinking: "",
     smoking: "",
     dislikedConditions: [] as string[],
+    stopMatching: false,
+    minMatchScore: 50,
   });
 
   const personalityError =
@@ -78,7 +80,9 @@ export default function ProfileSetupPage() {
       currentForm.religion === "" &&
       currentForm.drinking === "" &&
       currentForm.smoking === "" &&
-      currentForm.dislikedConditions.length === 0
+      currentForm.dislikedConditions.length === 0 &&
+      currentForm.stopMatching === false &&
+      currentForm.minMatchScore === 50
     );
   }
 
@@ -137,6 +141,8 @@ export default function ProfileSetupPage() {
             drinking: profile.drinking ?? "",
             smoking: profile.smoking ?? "",
             dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
+            stopMatching: Boolean(profile.stopMatching),
+            minMatchScore: typeof profile.minMatchScore === "number" ? profile.minMatchScore : 50,
           };
         });
       } finally {
@@ -186,6 +192,8 @@ export default function ProfileSetupPage() {
         drinking: form.drinking,
         smoking: form.smoking,
         dislikedConditions: form.dislikedConditions,
+        stopMatching: form.stopMatching,
+        minMatchScore: Math.max(0, Math.min(100, Math.trunc(form.minMatchScore))),
       };
 
       const res = await fetch("/api/profile", {
@@ -541,6 +549,48 @@ export default function ProfileSetupPage() {
                 {cond}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="card-romantic space-y-3 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">매칭 가능 여부</p>
+              <p className="text-xs text-muted-foreground">
+                {form.stopMatching ? "현재 매칭이 중단되어 추천에서 제외됩니다." : "현재 매칭이 활성화되어 추천 대상에 포함됩니다."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, stopMatching: !p.stopMatching }))}
+              className={`relative h-6 w-12 rounded-full transition-colors ${form.stopMatching ? "bg-gray-300" : "bg-primary"}`}
+              aria-label="매칭 가능 여부"
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${form.stopMatching ? "left-0.5" : "left-6"}`} />
+            </button>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-semibold">최소 매칭 점수</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={form.minMatchScore}
+                onChange={(e) => setForm((p) => ({ ...p, minMatchScore: Number(e.target.value) }))}
+                className="w-full"
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={form.minMatchScore}
+                onChange={(e) => setForm((p) => ({ ...p, minMatchScore: Number(e.target.value) }))}
+                className="w-20 rounded-xl border border-pink-200 px-2 py-1 text-sm"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">0~100 (권장: 50 이상)</p>
           </div>
         </div>
 
