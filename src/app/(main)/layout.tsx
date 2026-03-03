@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/navbar";
@@ -29,8 +30,11 @@ export default async function MainLayout({
     select: { profileComplete: true },
   });
 
-  // This redirect is skipped if already on /profile/setup
-  // The middleware or page itself handles that case
+  // Redirect to profile setup if not complete (skip if already there)
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  if (!user?.profileComplete && pathname !== "/profile/setup") {
+    redirect("/profile/setup");
+  }
 
   return (
     <div className="min-h-screen pb-20">
