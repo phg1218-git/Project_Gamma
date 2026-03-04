@@ -231,10 +231,18 @@ export default function ProfileSetupPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="text-center mb-6">
+      <div className="text-center mb-4">
         <Heart className="mx-auto mb-2 text-primary" size={32} fill="hsl(340, 82%, 62%)" strokeWidth={0} />
         <h1 className="text-xl font-bold">프로필 설정</h1>
         <p className="text-sm text-muted-foreground">나를 소개해주세요</p>
+      </div>
+
+      {/* 프로필은 전부 나에 대한 정보 */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100 mb-5">
+        <span className="text-base">🙋</span>
+        <p className="text-xs text-blue-600 font-medium">
+          이 페이지의 모든 항목은 <strong>나에 대한 정보</strong>입니다.
+        </p>
       </div>
 
       {error && (

@@ -53,11 +53,28 @@ export async function findMatches(
     throw new Error("프로필과 설문을 모두 완료해야 매칭이 가능합니다.");
   }
 
-  // 2. Fetch all candidates with completed profiles and surveys
-  //    Exclude users who have stopped matching
+  // 2-a. 이미 거부하거나 매칭 완료된 상대 ID 수집 (재노출 방지)
+  const excludedMatches = await prisma.match.findMany({
+    where: {
+      OR: [
+        // 내가 거부했거나 매칭 완료된 상대
+        { senderId: userId, status: { in: ["REJECTED", "MATCHED"] } },
+        // 나를 거부한 상대
+        { receiverId: userId, status: "REJECTED" },
+      ],
+    },
+    select: { senderId: true, receiverId: true },
+  });
+
+  const excludedUserIds = excludedMatches.map((m) =>
+    m.senderId === userId ? m.receiverId : m.senderId,
+  );
+
+  // 2-b. Fetch all candidates with completed profiles and surveys
+  //      Exclude self, stopped-matching users, and already-rejected/matched users
   const candidates = await prisma.user.findMany({
     where: {
-      id: { not: userId },
+      id: { notIn: [userId, ...excludedUserIds] },
       profileComplete: true,
       profile: {
         stopMatching: false,

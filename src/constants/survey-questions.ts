@@ -32,6 +32,7 @@ export interface SurveyQuestion {
   options?: string[];      // For select/multiselect
   slider?: SliderConfig;   // For slider type
   maxSelect?: number;      // Max selections for multiselect
+  perspective: "self" | "partner"; // "self" = 나에 대해, "partner" = 원하는 상대에 대해
 }
 
 // ── Survey Categories ──
@@ -53,6 +54,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "인생에서 연애의 중요도는?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "낮음", maxLabel: "매우 높음" },
+    perspective: "self",
   },
   {
     id: "dv_ideal_relationship_pace",
@@ -61,6 +63,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "이상적인 연애 진행 속도는?",
     required: true,
     options: ["천천히 알아가기", "자연스러운 흐름", "빠르게 확인하기", "상대에 맞추기"],
+    perspective: "partner",
   },
   {
     id: "dv_physical_affection",
@@ -69,6 +72,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "스킨십에 대한 적극성은?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "소극적", maxLabel: "적극적" },
+    perspective: "self",
   },
   {
     id: "dv_jealousy_level",
@@ -77,6 +81,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "질투의 정도는?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "전혀 안 함", maxLabel: "많이 함" },
+    perspective: "self",
   },
   {
     id: "dv_conflict_resolution",
@@ -85,6 +90,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "갈등 해결 방식은?",
     required: true,
     options: ["바로 대화", "시간을 두고 대화", "편지/메시지로 전달", "자연스럽게 풀리길 기다림"],
+    perspective: "self",
   },
   {
     id: "dv_deal_with_ex",
@@ -93,6 +99,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "전 연인과의 관계는?",
     required: true,
     options: ["완전 연락 안 함", "인사 정도는 함", "친구로 지냄", "상관없음"],
+    perspective: "self",
   },
 
   // ━━━ 라이프스타일 (Lifestyle) ━━━
@@ -103,6 +110,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "주말에 주로 하는 활동은?",
     required: true,
     options: ["집에서 쉬기", "야외 활동", "문화생활", "친구 만남", "자기개발"],
+    perspective: "self",
   },
   {
     id: "ls_sleep_schedule",
@@ -111,6 +119,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "주로 몇 시에 자나요?",
     required: true,
     options: ["10시 이전", "10시~12시", "12시~2시", "2시 이후"],
+    perspective: "self",
   },
   {
     id: "ls_exercise_frequency",
@@ -119,6 +128,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "운동 빈도는?",
     required: true,
     options: ["거의 안 함", "주 1-2회", "주 3-4회", "거의 매일"],
+    perspective: "self",
   },
   {
     id: "ls_spending_habits",
@@ -127,6 +137,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "소비 성향은? (절약 vs 투자)",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "절약형", maxLabel: "투자형" },
+    perspective: "self",
   },
   {
     id: "ls_cleanliness",
@@ -135,6 +146,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "정리정돈/청결 수준은?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "자유로움", maxLabel: "깔끔함" },
+    perspective: "self",
   },
   {
     id: "ls_pet_preference",
@@ -143,6 +155,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "반려동물에 대한 생각은?",
     required: true,
     options: ["키우고 있음", "키우고 싶음", "상관없음", "선호하지 않음"],
+    perspective: "self",
   },
 
   // ━━━ 소통 방식 (Communication) ━━━
@@ -153,6 +166,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "연인과의 이상적인 연락 빈도는?",
     required: true,
     options: ["수시로 연락", "하루 몇 번", "하루 1번", "필요할 때만"],
+    perspective: "partner",
   },
   {
     id: "cm_communication_style",
@@ -161,6 +175,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "선호하는 소통 방식은?",
     required: true,
     options: ["전화", "문자/카카오톡", "직접 만남", "영상통화"],
+    perspective: "self",
   },
   {
     id: "cm_emotional_expression",
@@ -169,6 +184,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "감정 표현의 정도는?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "표현 안 함", maxLabel: "적극 표현" },
+    perspective: "self",
   },
   {
     id: "cm_listening_vs_talking",
@@ -177,6 +193,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "대화에서의 역할은? (듣기 vs 말하기)",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "듣기형", maxLabel: "말하기형" },
+    perspective: "self",
   },
 
   // ━━━ 미래 계획 (Future Plans) ━━━
@@ -187,6 +204,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "결혼에 대한 생각은?",
     required: true,
     options: ["빠르게 하고 싶음", "천천히 생각 중", "아직 모르겠음", "결혼 생각 없음"],
+    perspective: "self",
   },
   {
     id: "fp_children_preference",
@@ -195,6 +213,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "자녀 계획은?",
     required: true,
     options: ["꼭 갖고 싶음", "있으면 좋겠음", "아직 모르겠음", "갖고 싶지 않음"],
+    perspective: "self",
   },
   {
     id: "fp_career_priority",
@@ -203,6 +222,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "커리어 우선순위는?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "여유로운 삶", maxLabel: "커리어 우선" },
+    perspective: "self",
   },
   {
     id: "fp_living_preference",
@@ -211,6 +231,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "선호하는 거주 형태는?",
     required: true,
     options: ["도시 중심", "도시 외곽", "교외/시골", "상관없음"],
+    perspective: "self",
   },
 
   // ━━━ 성격 심층 (Deep Personality) ━━━
@@ -221,6 +242,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "내향적 vs 외향적?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "내향적", maxLabel: "외향적" },
+    perspective: "self",
   },
   {
     id: "pd_spontaneity",
@@ -229,6 +251,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "즉흥적 vs 계획적?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "즉흥적", maxLabel: "계획적" },
+    perspective: "self",
   },
   {
     id: "pd_risk_tolerance",
@@ -237,6 +260,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "도전 성향은?",
     required: true,
     slider: { min: 1, max: 10, step: 1, minLabel: "안정 추구", maxLabel: "도전 추구" },
+    perspective: "self",
   },
   {
     id: "pd_humor_style",
@@ -246,6 +270,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     required: true,
     options: ["말장난/언어유머", "상황극/리액션", "블랙코미디", "자기비하", "따뜻한 유머"],
     maxSelect: 3,
+    perspective: "self",
   },
   {
     id: "pd_stress_coping",
@@ -254,6 +279,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     label: "스트레스 해소 방법은?",
     required: true,
     options: ["혼자 시간 보내기", "사람 만나기", "운동/활동", "먹기/마시기", "잠자기"],
+    perspective: "self",
   },
 ];
 

@@ -199,6 +199,21 @@ export default function SurveyPage() {
 }
 
 // ── Individual Question Card Component ──
+function PerspectiveBadge({ perspective }: { perspective: "self" | "partner" }) {
+  if (perspective === "partner") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-pink-100 text-primary mb-2">
+        💑 원하는 상대에 대해
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-500 mb-2">
+      🙋 나에 대해
+    </span>
+  );
+}
+
 function QuestionCard({
   question,
   value,
@@ -212,6 +227,7 @@ function QuestionCard({
 }) {
   return (
     <div className="card-romantic p-4">
+      <PerspectiveBadge perspective={question.perspective} />
       <label className="block text-sm font-semibold mb-3">{question.label}</label>
 
       {question.type === "slider" && question.slider && (

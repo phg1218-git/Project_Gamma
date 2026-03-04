@@ -19,9 +19,12 @@ export async function GET() {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    // Fetch existing matches for this user
+    // Fetch existing matches — REJECTED 제외 (넘긴 상대는 목록에서 숨김)
     const matches = await prisma.match.findMany({
-      where: { senderId: session.user.id },
+      where: {
+        senderId: session.user.id,
+        status: { notIn: ["REJECTED"] },
+      },
       include: {
         receiver: {
           include: { profile: true },
