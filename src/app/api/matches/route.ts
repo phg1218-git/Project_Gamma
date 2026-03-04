@@ -19,11 +19,19 @@ export async function GET() {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    // Fetch existing matches — REJECTED 제외 (넘긴 상대는 목록에서 숨김)
+    // Get user's minimum match score preference
+    const userProfile = await prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: { minMatchScore: true },
+    });
+    const minScore = userProfile?.minMatchScore ?? 0;
+
+    // Fetch existing matches — REJECTED 제외, 최소 점수 이상만
     const matches = await prisma.match.findMany({
       where: {
         senderId: session.user.id,
         status: { notIn: ["REJECTED"] },
+        score: { gte: minScore },
       },
       include: {
         receiver: {

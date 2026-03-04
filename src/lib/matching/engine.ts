@@ -57,8 +57,8 @@ export async function findMatches(
   const excludedMatches = await prisma.match.findMany({
     where: {
       OR: [
-        // 내가 거부했거나 매칭 완료된 상대
-        { senderId: userId, status: { in: ["REJECTED", "MATCHED"] } },
+        // 내가 거부했거나 수락 완료된 상대 (MATCHED enum 없음 → ACCEPTED 사용)
+        { senderId: userId, status: { in: ["REJECTED", "ACCEPTED"] } },
         // 나를 거부한 상대
         { receiverId: userId, status: "REJECTED" },
       ],

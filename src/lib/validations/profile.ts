@@ -105,6 +105,10 @@ export const profileSchema = z.object({
     .max(5, "비선호 조건은 최대 5개까지 선택 가능합니다.")
     .default([]),
 
+  celebrity: z.string().max(50, "닮은꼴 연예인은 50자 이하여야 합니다.").optional(),
+
+  minMatchScore: z.number().int().min(0).max(100).default(0).optional(),
+
   stopMatching: z.boolean().default(false),
 });
 

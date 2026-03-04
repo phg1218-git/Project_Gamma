@@ -26,7 +26,19 @@ export default function SurveyPage() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [currentStep]);
+    // Auto-initialize undefined slider answers to their min value so that
+    // 1 (the minimum) is stored as a valid answer without requiring the
+    // user to drag the slider.
+    setAnswers((prev) => {
+      const defaults: Record<string, number> = {};
+      for (const q of questions) {
+        if (q.type === "slider" && q.slider && prev[q.id] === undefined) {
+          defaults[q.id] = q.slider.min;
+        }
+      }
+      return Object.keys(defaults).length > 0 ? { ...defaults, ...prev } : prev;
+    });
+  }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;

@@ -43,6 +43,8 @@ export default function ProfileSetupPage() {
     drinking: "",
     smoking: "",
     dislikedConditions: [] as string[],
+    celebrity: "",
+    minMatchScore: 0,
   });
 
   const personalityError =
@@ -78,7 +80,9 @@ export default function ProfileSetupPage() {
       currentForm.religion === "" &&
       currentForm.drinking === "" &&
       currentForm.smoking === "" &&
-      currentForm.dislikedConditions.length === 0
+      currentForm.dislikedConditions.length === 0 &&
+      currentForm.celebrity === "" &&
+      currentForm.minMatchScore === 0
     );
   }
 
@@ -137,6 +141,8 @@ export default function ProfileSetupPage() {
             drinking: profile.drinking ?? "",
             smoking: profile.smoking ?? "",
             dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
+            celebrity: profile.celebrity ?? "",
+            minMatchScore: profile.minMatchScore ?? 0,
           };
         });
       } finally {
@@ -163,7 +169,7 @@ export default function ProfileSetupPage() {
     });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -187,6 +193,8 @@ export default function ProfileSetupPage() {
         drinking: form.drinking,
         smoking: form.smoking,
         dislikedConditions: form.dislikedConditions,
+        celebrity: form.celebrity || undefined,
+        minMatchScore: form.minMatchScore,
       };
 
       const res = await fetch("/api/profile", {
@@ -550,6 +558,39 @@ export default function ProfileSetupPage() {
                 {cond}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Celebrity Lookalike */}
+        <div className="card-romantic p-4">
+          <label className="block text-sm font-semibold mb-2">닮은꼴 연예인 (선택)</label>
+          <input
+            type="text"
+            value={form.celebrity}
+            onChange={(e) => setForm((p) => ({ ...p, celebrity: e.target.value }))}
+            placeholder="예: 아이유, 차은우 (50자 이내)"
+            maxLength={50}
+            className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+          />
+        </div>
+
+        {/* Min Match Score */}
+        <div className="card-romantic p-4">
+          <label className="block text-sm font-semibold mb-2">매칭 최소 점수</label>
+          <p className="text-xs text-muted-foreground mb-3">이 점수 이상인 상대만 매칭 목록에 표시됩니다.</p>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={form.minMatchScore}
+            onChange={(e) => setForm((p) => ({ ...p, minMatchScore: Number(e.target.value) }))}
+            className="w-full accent-primary"
+          />
+          <div className="flex justify-between mt-1">
+            <span className="text-xs text-muted-foreground">0점 (제한 없음)</span>
+            <span className="text-sm font-medium text-primary">{form.minMatchScore}점 이상</span>
+            <span className="text-xs text-muted-foreground">100점</span>
           </div>
         </div>
 

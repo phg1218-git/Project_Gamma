@@ -120,9 +120,13 @@ model Profile {
   drinking  DrinkingLevel
   smoking   SmokingLevel
 
+  // ─ Extra ─
+  celebrity          String?  @db.VarChar(50)  // 닮은꼴/닮은 연예인 (선택)
+
   // ─ Matching Control ─
   dislikedConditions String[] // 비선호 파트너 조건 (다중)
   stopMatching       Boolean  @default(false) // 매칭 중단 여부
+  minMatchScore      Int      @default(0)     // 매칭 최소 점수 (0-100)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
