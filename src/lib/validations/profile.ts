@@ -105,6 +105,13 @@ export const profileSchema = z.object({
     .max(5, "비선호 조건은 최대 5개까지 선택 가능합니다.")
     .default([]),
 
+  height: z
+    .number()
+    .int()
+    .min(140, "키는 140cm 이상이어야 합니다.")
+    .max(220, "키는 220cm 이하여야 합니다.")
+    .optional(),
+
   celebrity: z.string().max(50, "닮은꼴 연예인은 50자 이하여야 합니다.").optional(),
 
   minMatchScore: z.number().int().min(0).max(100).default(0).optional(),

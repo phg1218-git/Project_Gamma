@@ -24,6 +24,7 @@ export interface ProfileData {
   drinking: string;
   smoking: string;
   dislikedConditions: string[];
+  height?: number;
   stopMatching: boolean;
 }
 

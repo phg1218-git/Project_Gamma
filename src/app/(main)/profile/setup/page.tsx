@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { GENDER_LABELS, JOB_CATEGORY_LABELS, MBTI_OPTIONS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS, HOBBY_OPTIONS, PREFERENCE_OPTIONS, DISLIKED_CONDITIONS } from "@/constants/enums";
@@ -17,15 +17,25 @@ import { formatLocation } from "@/lib/utils";
 export default function ProfileSetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [personalityTouched, setPersonalityTouched] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+
+  // Separate DOB inputs for auto-focus UX
+  const [dobYear, setDobYear] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const dobMonthRef = useRef<HTMLInputElement>(null);
+  const dobDayRef = useRef<HTMLInputElement>(null);
+
+  // Section refs for scroll-to-error
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Form state
   const [form, setForm] = useState({
     gender: "",
-    dateOfBirth: "",
     nickname: "",
+    height: "",
     jobCategory: "",
     jobDetail: "",
     companyProvince: "",
@@ -59,33 +69,6 @@ export default function ProfileSetupPage() {
     return [province, district] as const;
   }
 
-  function isFormPristine(currentForm: typeof form) {
-    return (
-      currentForm.gender === "" &&
-      currentForm.dateOfBirth === "" &&
-      currentForm.nickname === "" &&
-      currentForm.jobCategory === "" &&
-      currentForm.jobDetail === "" &&
-      currentForm.companyProvince === "" &&
-      currentForm.companyDistrict === "" &&
-      currentForm.residenceProvince === "" &&
-      currentForm.residenceDistrict === "" &&
-      currentForm.hometownProvince === "" &&
-      currentForm.hometownDistrict === "" &&
-      currentForm.personality === "" &&
-      currentForm.hobbies.length === 0 &&
-      currentForm.preferences.length === 0 &&
-      currentForm.mbti === "" &&
-      currentForm.bloodType === "" &&
-      currentForm.religion === "" &&
-      currentForm.drinking === "" &&
-      currentForm.smoking === "" &&
-      currentForm.dislikedConditions.length === 0 &&
-      currentForm.celebrity === "" &&
-      currentForm.minMatchScore === 0
-    );
-  }
-
   useEffect(() => {
     let cancelled = false;
 
@@ -100,11 +83,7 @@ export default function ProfileSetupPage() {
           return;
         }
 
-        if (res.status === 404) {
-          return;
-        }
-
-        if (!res.ok) {
+        if (res.status === 404 || !res.ok) {
           return;
         }
 
@@ -112,39 +91,43 @@ export default function ProfileSetupPage() {
 
         if (cancelled) return;
 
+        // Load DOB into separate fields
+        if (profile.dateOfBirth) {
+          const dob = new Date(profile.dateOfBirth);
+          setDobYear(String(dob.getUTCFullYear()));
+          setDobMonth(String(dob.getUTCMonth() + 1).padStart(2, "0"));
+          setDobDay(String(dob.getUTCDate()).padStart(2, "0"));
+        }
+
         const [companyProvince, companyDistrict] = splitLocation(profile.companyLocation);
         const [residenceProvince, residenceDistrict] = splitLocation(profile.residenceLocation);
         const [hometownProvince, hometownDistrict] = splitLocation(profile.hometownLocation);
 
-        setForm((prev) => {
-          if (!isFormPristine(prev)) return prev;
-
-          return {
-            ...prev,
-            gender: profile.gender ?? "",
-            dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().slice(0, 10) : "",
-            nickname: profile.nickname ?? "",
-            jobCategory: profile.jobCategory ?? "",
-            jobDetail: profile.jobDetail ?? "",
-            companyProvince,
-            companyDistrict,
-            residenceProvince,
-            residenceDistrict,
-            hometownProvince,
-            hometownDistrict,
-            personality: profile.personality ?? "",
-            hobbies: Array.isArray(profile.hobbies) ? profile.hobbies : [],
-            preferences: Array.isArray(profile.preferences) ? profile.preferences : [],
-            mbti: profile.mbti ?? "",
-            bloodType: profile.bloodType ?? "",
-            religion: profile.religion ?? "",
-            drinking: profile.drinking ?? "",
-            smoking: profile.smoking ?? "",
-            dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
-            celebrity: profile.celebrity ?? "",
-            minMatchScore: profile.minMatchScore ?? 0,
-          };
-        });
+        setForm((prev) => ({
+          ...prev,
+          gender: profile.gender ?? "",
+          nickname: profile.nickname ?? "",
+          height: profile.height ? String(profile.height) : "",
+          jobCategory: profile.jobCategory ?? "",
+          jobDetail: profile.jobDetail ?? "",
+          companyProvince,
+          companyDistrict,
+          residenceProvince,
+          residenceDistrict,
+          hometownProvince,
+          hometownDistrict,
+          personality: profile.personality ?? "",
+          hobbies: Array.isArray(profile.hobbies) ? profile.hobbies : [],
+          preferences: Array.isArray(profile.preferences) ? profile.preferences : [],
+          mbti: profile.mbti ?? "",
+          bloodType: profile.bloodType ?? "",
+          religion: profile.religion ?? "",
+          drinking: profile.drinking ?? "",
+          smoking: profile.smoking ?? "",
+          dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
+          celebrity: profile.celebrity ?? "",
+          minMatchScore: profile.minMatchScore ?? 0,
+        }));
       } finally {
         if (!cancelled) setProfileLoading(false);
       }
@@ -169,16 +152,67 @@ export default function ProfileSetupPage() {
     });
   }
 
+  // Map Zod field errors from API response → fieldErrors state, then scroll to first error
+  function applyFieldErrors(data: { error?: string; details?: Array<{ path: (string | number)[]; message: string }> }) {
+    const errors: Record<string, string> = {};
+
+    if (Array.isArray(data.details)) {
+      for (const detail of data.details) {
+        const field = String(detail.path[0] ?? "");
+        if (field && !errors[field]) {
+          errors[field] = detail.message;
+        }
+      }
+    }
+
+    if (Object.keys(errors).length === 0) {
+      errors._global = data.error || "프로필 저장에 실패했습니다.";
+    }
+
+    setFieldErrors(errors);
+
+    // Scroll to first error field in visual order
+    const fieldOrder = [
+      "gender", "dateOfBirth", "nickname", "height",
+      "jobCategory", "jobDetail",
+      "companyLocation", "residenceLocation", "hometownLocation",
+      "personality", "hobbies", "preferences",
+      "mbti", "bloodType", "religion", "drinking", "smoking",
+    ];
+    // Map Zod field name → section ref key
+    const fieldToSection: Record<string, string> = {
+      jobCategory: "job",
+      jobDetail: "job",
+      companyLocation: "company",
+      residenceLocation: "residence",
+      hometownLocation: "hometown",
+    };
+
+    const firstField = fieldOrder.find((f) => errors[f]);
+    if (firstField) {
+      const sectionKey = fieldToSection[firstField] ?? firstField;
+      setTimeout(() => {
+        sectionRefs.current[sectionKey]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    }
+  }
+
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setFieldErrors({});
+
+    const dateOfBirth =
+      dobYear && dobMonth && dobDay
+        ? `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`
+        : "";
 
     try {
       const payload = {
         gender: form.gender,
-        dateOfBirth: form.dateOfBirth,
+        dateOfBirth,
         nickname: form.nickname,
+        height: form.height ? Number(form.height) : undefined,
         jobCategory: form.jobCategory,
         jobDetail: form.jobDetail,
         companyLocation: formatLocation(form.companyProvince, form.companyDistrict),
@@ -197,37 +231,30 @@ export default function ProfileSetupPage() {
         minMatchScore: form.minMatchScore,
       };
 
-      const res = await fetch("/api/profile", {
+      let res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (res.status === 409) {
-        // Profile exists, try update
-        const updateRes = await fetch("/api/profile", {
+        // Profile exists — update instead
+        res = await fetch("/api/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        if (!updateRes.ok) {
-          const data = await updateRes.json();
-          throw new Error(data.error || "프로필 수정에 실패했습니다.");
-        }
-      } else if (!res.ok) {
-        const data = await res.json();
+      }
 
-        // Zod details를 사람이 읽을 수 있게 합쳐서 표시
-        const details =
-          Array.isArray(data?.details)
-            ? data.details.map((e: any) => e.message).join("\n")
-            : "";
-        throw new Error(`${data.error || "프로필 생성에 실패했습니다."}\n${details}`);
+      if (!res.ok) {
+        const data = await res.json();
+        applyFieldErrors(data);
+        return;
       }
 
       router.push("/survey");
     } catch (err) {
-      setError((err as Error).message);
+      setFieldErrors({ _global: (err as Error).message });
     } finally {
       setLoading(false);
     }
@@ -253,15 +280,20 @@ export default function ProfileSetupPage() {
         </p>
       </div>
 
-      {error && (
+      {/* 글로벌 에러 (필드 특정 불가한 경우만) */}
+      {fieldErrors._global && (
         <div className="card-romantic p-3 mb-4 border-destructive/30 bg-red-50">
-          <p className="text-sm text-destructive">{error}</p>
+          <p className="text-sm text-destructive">{fieldErrors._global}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+
         {/* Gender */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["gender"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">성별 *</label>
           <div className="flex gap-3">
             {Object.entries(GENDER_LABELS).map(([value, label]) => (
@@ -279,22 +311,71 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.gender && <p className="text-xs text-destructive mt-2">{fieldErrors.gender}</p>}
         </div>
 
-        {/* Date of Birth */}
-        <div className="card-romantic p-4">
+        {/* Date of Birth — 년/월/일 분리 입력, 자동 포커스 이동 */}
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["dateOfBirth"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">생년월일 *</label>
-          <input
-            type="date"
-            value={form.dateOfBirth}
-            onChange={(e) => setForm((p) => ({ ...p, dateOfBirth: e.target.value }))}
-            className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-            required
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={dobYear}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setDobYear(val);
+                if (val.length === 4) dobMonthRef.current?.focus();
+              }}
+              placeholder="년도"
+              maxLength={4}
+              className="w-24 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm text-center"
+            />
+            <span className="text-muted-foreground text-sm">년</span>
+            <input
+              ref={dobMonthRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={dobMonth}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                setDobMonth(val);
+                if (val.length === 2) dobDayRef.current?.focus();
+              }}
+              placeholder="월"
+              maxLength={2}
+              className="w-16 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm text-center"
+            />
+            <span className="text-muted-foreground text-sm">월</span>
+            <input
+              ref={dobDayRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={dobDay}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                setDobDay(val);
+              }}
+              placeholder="일"
+              maxLength={2}
+              className="w-16 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm text-center"
+            />
+            <span className="text-muted-foreground text-sm">일</span>
+          </div>
+          {fieldErrors.dateOfBirth && <p className="text-xs text-destructive mt-2">{fieldErrors.dateOfBirth}</p>}
         </div>
 
         {/* Nickname */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["nickname"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">닉네임 *</label>
           <input
             type="text"
@@ -303,24 +384,48 @@ export default function ProfileSetupPage() {
             placeholder="2-20자 한글/영문/숫자"
             maxLength={20}
             className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-            required
           />
+          {fieldErrors.nickname && <p className="text-xs text-destructive mt-2">{fieldErrors.nickname}</p>}
+        </div>
+
+        {/* Height */}
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["height"] = el; }}
+        >
+          <label className="block text-sm font-semibold mb-2">키 (선택)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={form.height}
+              onChange={(e) => setForm((p) => ({ ...p, height: e.target.value }))}
+              placeholder="예: 175"
+              min={140}
+              max={220}
+              className="w-32 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+            />
+            <span className="text-sm text-muted-foreground">cm</span>
+          </div>
+          {fieldErrors.height && <p className="text-xs text-destructive mt-2">{fieldErrors.height}</p>}
         </div>
 
         {/* Job */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["job"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">직업 *</label>
           <select
             value={form.jobCategory}
             onChange={(e) => setForm((p) => ({ ...p, jobCategory: e.target.value }))}
             className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm mb-2"
-            required
           >
             <option value="">직업 분류 선택</option>
             {Object.entries(JOB_CATEGORY_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {fieldErrors.jobCategory && <p className="text-xs text-destructive mb-2">{fieldErrors.jobCategory}</p>}
           <input
             type="text"
             value={form.jobDetail}
@@ -328,18 +433,23 @@ export default function ProfileSetupPage() {
             placeholder="상세 직업 (예: 프론트엔드 개발자)"
             maxLength={50}
             className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-            required
           />
+          {fieldErrors.jobDetail && <p className="text-xs text-destructive mt-2">{fieldErrors.jobDetail}</p>}
         </div>
 
         {/* Locations */}
         {(["company", "residence", "hometown"] as const).map((locType) => {
           const labels = { company: "직장 소재지", residence: "거주지", hometown: "출신지" };
+          const locationFieldKey = `${locType}Location` as "companyLocation" | "residenceLocation" | "hometownLocation";
           const provinceKey = `${locType}Province` as keyof typeof form;
           const districtKey = `${locType}District` as keyof typeof form;
 
           return (
-            <div key={locType} className="card-romantic p-4">
+            <div
+              key={locType}
+              className="card-romantic p-4"
+              ref={(el) => { sectionRefs.current[locType] = el; }}
+            >
               <label className="block text-sm font-semibold mb-2">{labels[locType]} *</label>
               <div className="flex gap-2">
                 <select
@@ -348,7 +458,6 @@ export default function ProfileSetupPage() {
                     setForm((p) => ({ ...p, [provinceKey]: e.target.value, [districtKey]: "" }))
                   }
                   className="flex-1 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-                  required
                 >
                   <option value="">시/도</option>
                   {PROVINCES.map((p) => (
@@ -359,7 +468,6 @@ export default function ProfileSetupPage() {
                   value={form[districtKey] as string}
                   onChange={(e) => setForm((p) => ({ ...p, [districtKey]: e.target.value }))}
                   className="flex-1 px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-                  required
                   disabled={!(form[provinceKey] as string)}
                 >
                   <option value="">구/군</option>
@@ -368,12 +476,18 @@ export default function ProfileSetupPage() {
                   ))}
                 </select>
               </div>
+              {fieldErrors[locationFieldKey] && (
+                <p className="text-xs text-destructive mt-2">{fieldErrors[locationFieldKey]}</p>
+              )}
             </div>
           );
         })}
 
         {/* Personality */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["personality"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">성격 소개 *</label>
           <textarea
             value={form.personality}
@@ -383,20 +497,22 @@ export default function ProfileSetupPage() {
             maxLength={200}
             rows={3}
             className={`w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 text-sm resize-none ${
-              personalityError
+              personalityError || fieldErrors.personality
                 ? "border-destructive focus:ring-destructive/30"
                 : "border-pink-200 focus:ring-primary/30"
             }`}
-            required
           />
-          {personalityError && (
-            <p className="text-xs text-destructive mt-1">{personalityError}</p>
+          {(personalityError || fieldErrors.personality) && (
+            <p className="text-xs text-destructive mt-1">{personalityError || fieldErrors.personality}</p>
           )}
           <p className="text-xs text-muted-foreground mt-1">{form.personality.length}/200</p>
         </div>
 
         {/* Hobbies (Multi-select chips) */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["hobbies"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">취미 (최대 5개) *</label>
           <div className="flex flex-wrap gap-2">
             {HOBBY_OPTIONS.map((hobby) => (
@@ -415,10 +531,14 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.hobbies && <p className="text-xs text-destructive mt-2">{fieldErrors.hobbies}</p>}
         </div>
 
         {/* Preferences (Multi-select chips) */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["preferences"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">선호사항 (최대 5개) *</label>
           <div className="flex flex-wrap gap-2">
             {PREFERENCE_OPTIONS.map((pref) => (
@@ -437,10 +557,14 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.preferences && <p className="text-xs text-destructive mt-2">{fieldErrors.preferences}</p>}
         </div>
 
         {/* MBTI */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["mbti"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">MBTI *</label>
           <div className="grid grid-cols-4 gap-2">
             {MBTI_OPTIONS.map((mbti) => (
@@ -458,10 +582,14 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.mbti && <p className="text-xs text-destructive mt-2">{fieldErrors.mbti}</p>}
         </div>
 
         {/* Blood Type */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["bloodType"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">혈액형 *</label>
           <div className="flex gap-2">
             {Object.entries(BLOOD_TYPE_LABELS).map(([value, label]) => (
@@ -479,26 +607,33 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.bloodType && <p className="text-xs text-destructive mt-2">{fieldErrors.bloodType}</p>}
         </div>
 
         {/* Religion */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["religion"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">종교 *</label>
           <select
             value={form.religion}
             onChange={(e) => setForm((p) => ({ ...p, religion: e.target.value }))}
             className="w-full px-3 py-2 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-            required
           >
             <option value="">선택</option>
             {Object.entries(RELIGION_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {fieldErrors.religion && <p className="text-xs text-destructive mt-2">{fieldErrors.religion}</p>}
         </div>
 
         {/* Drinking */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["drinking"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">음주 *</label>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(DRINKING_LABELS).map(([value, label]) => (
@@ -516,10 +651,14 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.drinking && <p className="text-xs text-destructive mt-2">{fieldErrors.drinking}</p>}
         </div>
 
         {/* Smoking */}
-        <div className="card-romantic p-4">
+        <div
+          className="card-romantic p-4"
+          ref={(el) => { sectionRefs.current["smoking"] = el; }}
+        >
           <label className="block text-sm font-semibold mb-2">흡연 *</label>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(SMOKING_LABELS).map(([value, label]) => (
@@ -537,6 +676,7 @@ export default function ProfileSetupPage() {
               </button>
             ))}
           </div>
+          {fieldErrors.smoking && <p className="text-xs text-destructive mt-2">{fieldErrors.smoking}</p>}
         </div>
 
         {/* Disliked Conditions */}

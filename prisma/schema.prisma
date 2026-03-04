@@ -97,6 +97,7 @@ model Profile {
   gender        Gender           // 성별
   dateOfBirth   DateTime         // 생년월일 (age calculated dynamically)
   nickname      String   @db.VarChar(20) // 닉네임 (anonymous display name)
+  height        Int?                      // 키 (cm, 선택)
 
   // ─ Job ─
   jobCategory   JobCategory      // 직업 대분류
