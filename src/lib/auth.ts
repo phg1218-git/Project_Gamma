@@ -54,9 +54,10 @@ const KakaoProvider = {
   checks: ["state"] as ("state" | "pkce" | "none")[], // Kakao does not support PKCE
   authorization: {
     url: "https://kauth.kakao.com/oauth/authorize",
-    params: { 
-        scope: "profile_nickname account_email",
-     },
+    params: {
+      scope: "profile_nickname profile_image account_email",
+      response_type: "code",
+    },
   },
   token: "https://kauth.kakao.com/oauth/token",
   userinfo: "https://kapi.kakao.com/v2/user/me",
