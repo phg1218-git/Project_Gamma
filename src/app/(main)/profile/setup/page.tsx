@@ -149,6 +149,7 @@ export default function ProfileSetupPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   // Toggle a value in a multi-select array
