@@ -252,7 +252,13 @@ export default function ProfileSetupPage() {
         return;
       }
 
-      router.push("/survey");
+      // 설문 완료 여부 확인 후 분기
+      const surveyCheck = await fetch("/api/survey");
+      if (surveyCheck.status === 404) {
+        router.push("/survey");
+      } else {
+        router.push("/profile");
+      }
     } catch (err) {
       setFieldErrors({ _global: (err as Error).message });
     } finally {

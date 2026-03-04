@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Heart, Briefcase, MapPin, Smile, Music, Brain, Droplet,
-  Church, Wine, Cigarette, ShieldX,
+  Church, Wine, Cigarette, ShieldX, Ruler, Star, Target,
 } from "lucide-react";
 import type { ProfileData } from "@/types/profile";
 import { JOB_CATEGORY_LABELS, MBTI_OPTIONS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS } from "@/constants/enums";
@@ -74,6 +74,7 @@ export default function ProfilePage() {
         <h2 className="text-xl font-bold">{profile.nickname}</h2>
         <p className="text-sm text-muted-foreground">
           {age}세 · {profile.gender === "MALE" ? "남성" : "여성"}
+          {profile.height ? ` · ${profile.height}cm` : ""}
         </p>
       </div>
 
@@ -154,6 +155,18 @@ export default function ProfilePage() {
             <Cigarette size={14} className="text-muted-foreground" />
             흡연: {SMOKING_LABELS[profile.smoking]}
           </div>
+          {profile.height && (
+            <div className="flex items-center gap-2">
+              <Ruler size={14} className="text-muted-foreground" />
+              키: {profile.height}cm
+            </div>
+          )}
+          {profile.celebrity && (
+            <div className="flex items-center gap-2 col-span-2">
+              <Star size={14} className="text-muted-foreground" />
+              닮은꼴: {profile.celebrity}
+            </div>
+          )}
         </div>
       </div>
 
@@ -172,6 +185,27 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Matching Settings */}
+      <div className="card-romantic p-4">
+        <h3 className="flex items-center gap-2 font-semibold text-sm mb-3">
+          <Target size={16} className="text-primary" /> 매칭 설정
+        </h3>
+        <div className="text-sm space-y-1">
+          <p className="text-muted-foreground">
+            최소 매칭 점수:{" "}
+            <span className="text-foreground font-medium">
+              {profile.minMatchScore > 0 ? `${profile.minMatchScore}점 이상` : "제한 없음"}
+            </span>
+          </p>
+          <p className="text-muted-foreground">
+            매칭 상태:{" "}
+            <span className={`font-medium ${profile.stopMatching ? "text-destructive" : "text-primary"}`}>
+              {profile.stopMatching ? "일시 중단" : "활성"}
+            </span>
+          </p>
+        </div>
+      </div>
 
       {/* Edit Button */}
       <button

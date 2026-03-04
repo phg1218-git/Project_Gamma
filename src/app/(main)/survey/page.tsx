@@ -1,9 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, ChevronRight, ChevronLeft } from "lucide-react";
+import { Heart, ChevronRight, ChevronLeft, Save, CheckCircle } from "lucide-react";
 import { SURVEY_CATEGORIES, getQuestionsByCategory, type SurveyQuestion } from "@/constants/survey-questions";
+
+const DRAFT_KEY = "survey_draft";
+
+function loadDraftFromStorage(): Record<string, number | string | string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed.answers ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function loadDraftSavedAt(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw).savedAt ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Survey Page
@@ -11,24 +36,32 @@ import { SURVEY_CATEGORIES, getQuestionsByCategory, type SurveyQuestion } from "
  * Step-by-step survey form organized by category.
  * Each category is one "page" of questions.
  * Progress bar shows completion status.
+ * Draft auto-saved to localStorage; pre-filled from existing survey on load.
  */
 export default function SurveyPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number | string | string[]>>({});
+
+  // Initialize answers from localStorage draft (synchronous, before effects run)
+  const [answers, setAnswers] = useState<Record<string, number | string | string[]>>(
+    () => loadDraftFromStorage(),
+  );
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(() => loadDraftSavedAt());
+  const [saveIndicator, setSaveIndicator] = useState(false); // 임시저장 완료 표시
+
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const categories = [...SURVEY_CATEGORIES];
   const currentCategory = categories[currentStep];
   const questions = getQuestionsByCategory(currentCategory.id);
   const progress = ((currentStep + 1) / categories.length) * 100;
 
+  // 페이지 이동 시 맨 위로 스크롤 + 슬라이더 기본값 초기화
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    // Auto-initialize undefined slider answers to their min value so that
-    // 1 (the minimum) is stored as a valid answer without requiring the
-    // user to drag the slider.
     setAnswers((prev) => {
       const defaults: Record<string, number> = {};
       for (const q of questions) {
@@ -40,6 +73,7 @@ export default function SurveyPage() {
     });
   }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 서버에서 기존 설문 데이터 로드 (드래프트 없는 경우에만 적용)
   useEffect(() => {
     let cancelled = false;
 
@@ -48,19 +82,8 @@ export default function SurveyPage() {
         const res = await fetch("/api/survey");
 
         if (cancelled) return;
-
-        if (res.status === 401) {
-          router.push("/login");
-          return;
-        }
-
-        if (res.status === 404) {
-          return;
-        }
-
-        if (!res.ok) {
-          return;
-        }
+        if (res.status === 401) { router.push("/login"); return; }
+        if (res.status === 404 || !res.ok) return;
 
         const data = await res.json();
         const existingAnswers = data?.answers;
@@ -70,19 +93,50 @@ export default function SurveyPage() {
           typeof existingAnswers === "object" &&
           !Array.isArray(existingAnswers)
         ) {
+          // 로컬 드래프트가 없을 때만 서버 데이터로 채움
           setAnswers((prev) => (Object.keys(prev).length === 0 ? existingAnswers : prev));
         }
       } catch {
-        // ignore prefill failure and keep empty survey for first-time input
+        // 프리필 실패는 무시
       }
     }
 
     loadSurvey();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  // 답변 변경 시 자동 임시저장 (1.5초 디바운스)
+  useEffect(() => {
+    if (Object.keys(answers).length === 0) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveDraft(false);
+    }, 1500);
 
     return () => {
-      cancelled = true;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [router]);
+  }, [answers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function saveDraft(showIndicator = true) {
+    const savedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ answers, savedAt }));
+      setDraftSavedAt(savedAt);
+      if (showIndicator) {
+        setSaveIndicator(true);
+        setTimeout(() => setSaveIndicator(false), 2000);
+      }
+    } catch {
+      // localStorage 저장 실패 무시
+    }
+  }
+
+  function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftSavedAt(null);
+  }
 
   function updateAnswer(questionId: string, value: number | string | string[]) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -127,6 +181,7 @@ export default function SurveyPage() {
         throw new Error(data.error || "설문 제출에 실패했습니다.");
       }
 
+      clearDraft();
       router.push("/matches");
     } catch (err) {
       setError((err as Error).message);
@@ -135,10 +190,18 @@ export default function SurveyPage() {
     }
   }
 
+  // 임시저장 시각 포맷
+  function formatSavedAt(iso: string): string {
+    const d = new Date(iso);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Progress Bar */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground">
             {currentStep + 1} / {categories.length}
@@ -146,6 +209,12 @@ export default function SurveyPage() {
           <span className="text-xs font-medium text-primary">
             {currentCategory.label}
           </span>
+          {/* 임시저장 시각 표시 */}
+          {draftSavedAt && (
+            <span className="text-xs text-muted-foreground">
+              임시저장 {formatSavedAt(draftSavedAt)}
+            </span>
+          )}
         </div>
         <div className="score-bar">
           <div className="score-bar-fill" style={{ width: `${progress}%` }} />
@@ -183,11 +252,31 @@ export default function SurveyPage() {
         {currentStep > 0 && (
           <button
             onClick={() => setCurrentStep((s) => s - 1)}
-            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
+            className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
           >
             <ChevronLeft size={16} /> 이전
           </button>
         )}
+
+        {/* 임시저장 버튼 */}
+        <button
+          type="button"
+          onClick={() => saveDraft(true)}
+          className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
+        >
+          {saveIndicator ? (
+            <>
+              <CheckCircle size={15} className="text-primary" />
+              <span className="text-primary">저장됨</span>
+            </>
+          ) : (
+            <>
+              <Save size={15} />
+              임시저장
+            </>
+          )}
+        </button>
+
         {currentStep < categories.length - 1 ? (
           <button
             onClick={() => setCurrentStep((s) => s + 1)}
