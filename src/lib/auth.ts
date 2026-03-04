@@ -52,6 +52,9 @@ const KakaoProvider = {
   name: "Kakao",
   type: "oauth" as const,
   checks: ["state"] as ("state" | "pkce" | "none")[], // Kakao does not support PKCE
+  client: {
+    token_endpoint_auth_method: "client_secret_post" as const, // Kakao requires credentials in body, not header
+  },
   authorization: {
     url: "https://kauth.kakao.com/oauth/authorize",
     params: {
