@@ -23,6 +23,7 @@ const NaverProvider = {
   id: "naver",
   name: "Naver",
   type: "oauth" as const,
+  checks: ["state"] as ("state" | "pkce" | "none")[], // Naver does not support PKCE
   authorization: {
     url: "https://nid.naver.com/oauth2.0/authorize",
     params: { response_type: "code" },
@@ -50,6 +51,7 @@ const KakaoProvider = {
   id: "kakao",
   name: "Kakao",
   type: "oauth" as const,
+  checks: ["state"] as ("state" | "pkce" | "none")[], // Kakao does not support PKCE
   authorization: {
     url: "https://kauth.kakao.com/oauth/authorize",
     params: { 
