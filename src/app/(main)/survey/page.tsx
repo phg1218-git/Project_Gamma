@@ -53,6 +53,7 @@ export default function SurveyPage() {
   const [saveIndicator, setSaveIndicator] = useState(false); // 임시저장 완료 표시
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serverLoadDone = useRef(false);
 
   const categories = [...SURVEY_CATEGORIES];
   const currentCategory = categories[currentStep];
@@ -94,10 +95,15 @@ export default function SurveyPage() {
           !Array.isArray(existingAnswers)
         ) {
           // 로컬 드래프트가 없을 때만 서버 데이터로 채움
-          setAnswers((prev) => (Object.keys(prev).length === 0 ? existingAnswers : prev));
+          const hasDraft = !!localStorage.getItem(DRAFT_KEY);
+          if (!hasDraft) {
+            setAnswers(existingAnswers);
+          }
         }
       } catch {
         // 프리필 실패는 무시
+      } finally {
+        serverLoadDone.current = true;
       }
     }
 
@@ -105,9 +111,10 @@ export default function SurveyPage() {
     return () => { cancelled = true; };
   }, [router]);
 
-  // 답변 변경 시 자동 임시저장 (1.5초 디바운스)
+  // 답변 변경 시 자동 임시저장 (1.5초 디바운스, 서버 로드 완료 후에만)
   useEffect(() => {
     if (Object.keys(answers).length === 0) return;
+    if (!serverLoadDone.current) return;
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {

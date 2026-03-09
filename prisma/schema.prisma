@@ -122,6 +122,7 @@ model Profile {
   smoking   SmokingLevel
 
   // ─ Extra ─
+  profileImage       String?  @db.Text         // 프로필 사진 (base64 data URL)
   celebrity          String?  @db.VarChar(50)  // 닮은꼴/닮은 연예인 (선택)
 
   // ─ Matching Control ─

@@ -25,6 +25,7 @@ export interface ProfileData {
   smoking: string;
   dislikedConditions: string[];
   height?: number;
+  profileImage?: string;
   celebrity?: string;
   minMatchScore: number;
   stopMatching: boolean;

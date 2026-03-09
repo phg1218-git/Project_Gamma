@@ -66,11 +66,19 @@ export default function ProfilePage() {
     <div className="space-y-4 animate-fade-in">
       {/* Header Card */}
       <div className="card-romantic p-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-gradient-pink mx-auto mb-3 flex items-center justify-center">
-          <span className="text-2xl font-bold text-white">
-            {profile.nickname.charAt(0)}
-          </span>
-        </div>
+        {profile.profileImage ? (
+          <img
+            src={profile.profileImage}
+            alt={profile.nickname}
+            className="w-20 h-20 rounded-full mx-auto mb-3 object-cover"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-full bg-gradient-pink mx-auto mb-3 flex items-center justify-center">
+            <span className="text-2xl font-bold text-white">
+              {profile.nickname.charAt(0)}
+            </span>
+          </div>
+        )}
         <h2 className="text-xl font-bold">{profile.nickname}</h2>
         <p className="text-sm text-muted-foreground">
           {age}세 · {profile.gender === "MALE" ? "남성" : "여성"}

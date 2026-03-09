@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Heart } from "lucide-react";
+import { Heart, Camera } from "lucide-react";
 import { GENDER_LABELS, JOB_CATEGORY_LABELS, MBTI_OPTIONS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS, HOBBY_OPTIONS, PREFERENCE_OPTIONS, DISLIKED_CONDITIONS } from "@/constants/enums";
 import { PROVINCES, getDistricts } from "@/constants/locations";
 import { formatLocation } from "@/lib/utils";
@@ -54,8 +54,50 @@ export default function ProfileSetupPage() {
     smoking: "",
     dislikedConditions: [] as string[],
     celebrity: "",
+    profileImage: "",
     minMatchScore: 0,
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) return;
+
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX = 300;
+        let w = img.width;
+        let h = img.height;
+
+        if (w > MAX || h > MAX) {
+          if (w > h) {
+            h = Math.round((h * MAX) / w);
+            w = MAX;
+          } else {
+            w = Math.round((w * MAX) / h);
+            h = MAX;
+          }
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        setForm((p) => ({ ...p, profileImage: dataUrl }));
+      };
+      img.src = reader.result as string;
+    };
+
+    reader.readAsDataURL(file);
+  }
 
   const personalityError =
     (personalityTouched || form.personality.length > 0) &&
@@ -126,6 +168,7 @@ export default function ProfileSetupPage() {
           smoking: profile.smoking ?? "",
           dislikedConditions: Array.isArray(profile.dislikedConditions) ? profile.dislikedConditions : [],
           celebrity: profile.celebrity ?? "",
+          profileImage: profile.profileImage ?? "",
           minMatchScore: profile.minMatchScore ?? 0,
         }));
       } finally {
@@ -228,6 +271,7 @@ export default function ProfileSetupPage() {
         smoking: form.smoking,
         dislikedConditions: form.dislikedConditions,
         celebrity: form.celebrity || undefined,
+        profileImage: form.profileImage || undefined,
         minMatchScore: form.minMatchScore,
       };
 
@@ -294,6 +338,41 @@ export default function ProfileSetupPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* Profile Image */}
+        <div className="card-romantic p-4">
+          <label className="block text-sm font-semibold mb-3">프로필 사진 (선택)</label>
+          <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-24 h-24 rounded-full bg-pink-50 border-2 border-dashed border-pink-200 flex items-center justify-center overflow-hidden hover:border-primary transition-colors"
+            >
+              {form.profileImage ? (
+                <img src={form.profileImage} alt="프로필 미리보기" className="w-full h-full object-cover" />
+              ) : (
+                <Camera size={28} className="text-pink-300" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            <p className="text-xs text-muted-foreground">탭하여 사진 선택 (최대 300x300 자동 리사이즈)</p>
+            {form.profileImage && (
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, profileImage: "" }))}
+                className="text-xs text-destructive hover:underline"
+              >
+                사진 삭제
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Gender */}
         <div
