@@ -67,6 +67,7 @@ export default function ProfilePage() {
       {/* Header Card */}
       <div className="card-romantic p-6 text-center">
         {profile.profileImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={profile.profileImage}
             alt={profile.nickname}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { messageSchema } from "@/lib/validations/chat";
+import { messageSchema, messagePollSchema } from "@/lib/validations/chat";
 import { ZodError } from "zod";
 
 /**
@@ -42,10 +42,24 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    // Parse query params for polling cursor
+    // Parse and validate query params
     const url = new URL(request.url);
-    const after = url.searchParams.get("after");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
+    const rawParams = {
+      after: url.searchParams.get("after") ?? undefined,
+      limit: url.searchParams.get("limit") ?? undefined,
+    };
+
+    let pollParams: { after?: string; limit: number };
+    try {
+      pollParams = messagePollSchema.parse(rawParams);
+    } catch (e) {
+      if (e instanceof ZodError) {
+        return NextResponse.json({ error: "잘못된 요청 파라미터입니다.", details: e.errors }, { status: 400 });
+      }
+      throw e;
+    }
+
+    const { after, limit } = pollParams;
 
     // Build query conditions
     const whereCondition: Record<string, unknown> = { threadId };

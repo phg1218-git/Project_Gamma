@@ -25,9 +25,10 @@ export async function GET(
       return NextResponse.json({ error: "본인 프로필은 /api/profile을 사용하세요." }, { status: 400 });
     }
 
-    // Verify a match exists between the two users
+    // Verify an active match exists between the two users (PENDING or ACCEPTED only)
     const match = await prisma.match.findFirst({
       where: {
+        status: { in: ["PENDING", "ACCEPTED"] },
         OR: [
           { senderId: currentUserId, receiverId: userId },
           { senderId: userId, receiverId: currentUserId },

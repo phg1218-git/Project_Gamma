@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Heart, LogOut, PauseCircle, PlayCircle } from "lucide-react";
 
 /**
@@ -15,6 +15,22 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const [stopMatching, setStopMatching] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Hydrate stopMatching from server on mount
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          setStopMatching(data.stopMatching ?? false);
+        }
+      } catch {
+        // silently ignore — default false is safe
+      }
+    }
+    loadProfile();
+  }, []);
 
   async function toggleStopMatching() {
     setSaving(true);

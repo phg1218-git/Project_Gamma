@@ -136,7 +136,7 @@ export async function PATCH(request: Request) {
       data: { status },
     });
 
-    // If both users accepted, create a chat thread
+    // If both users accepted, create a chat thread (idempotent)
     if (status === "ACCEPTED") {
       // Check if the reverse match is also accepted
       const reverseMatch = await prisma.match.findFirst({
@@ -148,13 +148,20 @@ export async function PATCH(request: Request) {
       });
 
       if (reverseMatch) {
-        // Both accepted — create chat thread
-        await prisma.chatThread.create({
-          data: {
-            matchId: match.id,
-            userAId: match.senderId,
-            userBId: match.receiverId,
-          },
+        // Both accepted — create chat thread inside a transaction to prevent duplicates
+        await prisma.$transaction(async (tx) => {
+          const existingThread = await tx.chatThread.findUnique({
+            where: { matchId: match.id },
+          });
+          if (!existingThread) {
+            await tx.chatThread.create({
+              data: {
+                matchId: match.id,
+                userAId: match.senderId,
+                userBId: match.receiverId,
+              },
+            });
+          }
         });
       }
     }

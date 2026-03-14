@@ -362,6 +362,7 @@ function ProfileModal({
           {/* Avatar + Basic Info */}
           <div className="text-center">
             {profile.profileImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.profileImage}
                 alt={profile.nickname}

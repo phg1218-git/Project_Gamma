@@ -112,7 +112,11 @@ export const profileSchema = z.object({
     .max(220, "키는 220cm 이하여야 합니다.")
     .optional(),
 
-  profileImage: z.string().max(500000, "이미지 크기가 너무 큽니다.").optional(),
+  profileImage: z
+    .string()
+    .regex(/^data:image\/(jpeg|jpg|png|webp);base64,/, "지원되지 않는 이미지 형식입니다.")
+    .max(500000, "이미지 크기가 너무 큽니다.")
+    .optional(),
 
   celebrity: z.string().max(50, "닮은꼴 연예인은 50자 이하여야 합니다.").optional(),
 

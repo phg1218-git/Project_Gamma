@@ -349,6 +349,7 @@ export default function ProfileSetupPage() {
               className="w-24 h-24 rounded-full bg-pink-50 border-2 border-dashed border-pink-200 flex items-center justify-center overflow-hidden hover:border-primary transition-colors"
             >
               {form.profileImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={form.profileImage} alt="프로필 미리보기" className="w-full h-full object-cover" />
               ) : (
                 <Camera size={28} className="text-pink-300" />
