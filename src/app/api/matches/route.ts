@@ -55,19 +55,39 @@ export async function GET() {
           where: { senderId: session.user.id },
           include: {
             receiver: {
-              include: { profile: true },
+              include: {
+                profile: {
+                  select: {
+                    nickname: true,
+                    dateOfBirth: true,
+                    jobCategory: true,
+                    residenceLocation: true,
+                    profileImage: true,
+                  },
+                },
+              },
             },
           },
           orderBy: { score: "desc" },
           take: 20,
         });
 
+        if (newMatches.length === 0) {
+          // Profile + survey complete, but no candidates yet
+          return NextResponse.json({
+            matches: [],
+            message: "현재 매칭 가능한 상대가 없습니다. 잠시 후 새로고침해보세요.",
+            needsSetup: false,
+          });
+        }
+
         return NextResponse.json(formatMatches(newMatches, session.user.id));
       } catch (matchError) {
-        // If matching fails (e.g., no survey), return empty with message
+        // Profile or survey not complete
         return NextResponse.json({
           matches: [],
           message: (matchError as Error).message,
+          needsSetup: true,
         });
       }
     }
@@ -188,6 +208,7 @@ function formatMatches(
         dateOfBirth: Date;
         jobCategory: string;
         residenceLocation: string;
+        profileImage: string | null;
       } | null;
     };
   }>,
@@ -208,6 +229,7 @@ function formatMatches(
         age,
         jobCategory: profile?.jobCategory || "",
         residenceProvince,
+        profileImage: profile?.profileImage || null,
         score: m.breakdown,
         totalScore: m.score,
         status: m.status,

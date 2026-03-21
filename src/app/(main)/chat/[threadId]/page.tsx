@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart } from "lucide-react";
+import { ArrowLeft, Send, Heart, ImageOff, Eye } from "lucide-react";
 
 /**
  * Individual Chat Thread Page
@@ -10,6 +10,7 @@ import { ArrowLeft, Send, Heart } from "lucide-react";
  * Polling-based real-time messaging.
  * Polls every 3 seconds for new messages.
  * Messages auto-scroll to bottom.
+ * Photo reveal: both users must consent to see each other's profile photo.
  */
 
 interface Message {
@@ -21,6 +22,12 @@ interface Message {
   isMine: boolean;
 }
 
+interface PhotoRevealState {
+  myReveal: boolean;
+  partnerReveal: boolean;
+  partnerPhoto: string | null;
+}
+
 export default function ChatThreadPage() {
   const params = useParams();
   const router = useRouter();
@@ -30,10 +37,16 @@ export default function ChatThreadPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [photoReveal, setPhotoReveal] = useState<PhotoRevealState>({
+    myReveal: false,
+    partnerReveal: false,
+    partnerPhoto: null,
+  });
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
 
-  // Scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -41,12 +54,12 @@ export default function ChatThreadPage() {
   // Fetch messages (initial load or poll for new ones)
   const fetchMessages = useCallback(async (isInitial: boolean = false) => {
     try {
-      const params = new URLSearchParams();
+      const urlParams = new URLSearchParams();
       if (!isInitial && lastTimestampRef.current) {
-        params.set("after", lastTimestampRef.current);
+        urlParams.set("after", lastTimestampRef.current);
       }
 
-      const res = await fetch(`/api/chat/${threadId}/messages?${params}`);
+      const res = await fetch(`/api/chat/${threadId}/messages?${urlParams}`);
       if (res.ok) {
         const data = await res.json();
         const newMessages = data.messages as Message[];
@@ -56,13 +69,11 @@ export default function ChatThreadPage() {
             setMessages(newMessages);
           } else {
             setMessages((prev) => {
-              // Deduplicate by ID
               const existingIds = new Set(prev.map((m) => m.id));
               const unique = newMessages.filter((m) => !existingIds.has(m.id));
               return [...prev, ...unique];
             });
           }
-          // Update cursor to the latest message timestamp
           lastTimestampRef.current = newMessages[newMessages.length - 1].createdAt;
           scrollToBottom();
         }
@@ -74,12 +85,29 @@ export default function ChatThreadPage() {
     }
   }, [threadId, scrollToBottom]);
 
+  // Fetch photo reveal status
+  const fetchPhotoReveal = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/chat/${threadId}/reveal`);
+      if (res.ok) {
+        const data = await res.json();
+        setPhotoReveal(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch photo reveal:", error);
+    }
+  }, [threadId]);
+
   // Initial fetch + polling
   useEffect(() => {
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 3000);
+    fetchPhotoReveal();
+    const interval = setInterval(() => {
+      fetchMessages(false);
+      fetchPhotoReveal();
+    }, 3000);
     return () => clearInterval(interval);
-  }, [fetchMessages]);
+  }, [fetchMessages, fetchPhotoReveal]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -104,9 +132,24 @@ export default function ChatThreadPage() {
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      setInput(content); // Restore input on failure
+      setInput(content);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handlePhotoReveal() {
+    setRevealLoading(true);
+    try {
+      const res = await fetch(`/api/chat/${threadId}/reveal`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setPhotoReveal(data);
+      }
+    } catch (error) {
+      console.error("Failed to toggle photo reveal:", error);
+    } finally {
+      setRevealLoading(false);
     }
   }
 
@@ -118,18 +161,80 @@ export default function ChatThreadPage() {
     );
   }
 
+  const bothRevealed = photoReveal.myReveal && photoReveal.partnerReveal;
+
   return (
     <div className="flex flex-col h-[calc(100dvh-11.5rem)]">
       {/* Chat Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-pink-100">
+      <div className="flex items-center gap-3 pb-3 border-b border-pink-100">
         <button
           onClick={() => router.push("/chat")}
           className="p-1 rounded-full hover:bg-pink-50 transition-colors"
         >
           <ArrowLeft size={20} className="text-muted-foreground" />
         </button>
-        <h2 className="font-semibold">채팅</h2>
+
+        {/* Partner photo or avatar */}
+        {bothRevealed && photoReveal.partnerPhoto ? (
+          <button
+            type="button"
+            onClick={() => setZoomImage(photoReveal.partnerPhoto!)}
+            className="flex-shrink-0"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoReveal.partnerPhoto}
+              alt="상대방"
+              className="w-9 h-9 rounded-full object-cover hover:opacity-90 transition-opacity"
+            />
+          </button>
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-gradient-pink flex items-center justify-center flex-shrink-0">
+            <Heart size={14} className="text-white" />
+          </div>
+        )}
+
+        <h2 className="font-semibold flex-1">채팅</h2>
+
+        {/* Photo reveal button */}
+        <button
+          onClick={handlePhotoReveal}
+          disabled={revealLoading}
+          title={photoReveal.myReveal ? "사진 공개 취소" : "사진 공개하기"}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
+            photoReveal.myReveal
+              ? "bg-primary text-white"
+              : "bg-pink-50 text-primary hover:bg-pink-100"
+          }`}
+        >
+          {bothRevealed ? (
+            <Eye size={13} />
+          ) : (
+            <ImageOff size={13} />
+          )}
+          {photoReveal.myReveal
+            ? bothRevealed
+              ? "사진 공개 중"
+              : "공개 대기 중"
+            : "사진 공개"}
+        </button>
       </div>
+
+      {/* Photo reveal status banner */}
+      {photoReveal.myReveal && !bothRevealed && (
+        <div className="py-2 px-3 bg-pink-50 border-b border-pink-100 text-center">
+          <p className="text-xs text-primary">
+            사진 공개를 요청했습니다. 상대방도 동의하면 서로의 사진을 볼 수 있어요.
+          </p>
+        </div>
+      )}
+      {bothRevealed && (
+        <div className="py-2 px-3 bg-green-50 border-b border-green-100 text-center">
+          <p className="text-xs text-green-600">
+            서로 사진을 공개했습니다! 상대방 사진을 확인해보세요.
+          </p>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto py-4 space-y-3">
@@ -145,8 +250,31 @@ export default function ChatThreadPage() {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.isMine ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.isMine ? "justify-end" : "justify-start"} items-end gap-2`}
           >
+            {/* 상대방 메시지 왼쪽에 사진 */}
+            {!msg.isMine && (
+              <div className="flex-shrink-0 w-7 h-7">
+                {bothRevealed && photoReveal.partnerPhoto ? (
+                  <button
+                    type="button"
+                    onClick={() => setZoomImage(photoReveal.partnerPhoto!)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoReveal.partnerPhoto}
+                      alt="상대방"
+                      className="w-7 h-7 rounded-full object-cover hover:opacity-90 transition-opacity"
+                    />
+                  </button>
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-pink-100 flex items-center justify-center">
+                    <Heart size={10} className="text-primary" />
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className={`max-w-[75%] ${msg.isMine ? "chat-bubble-mine" : "chat-bubble-theirs"}`}>
               <p className="text-sm break-words">{msg.content}</p>
               <p className={`text-[10px] mt-1 ${msg.isMine ? "text-white/70" : "text-muted-foreground"}`}>
@@ -178,6 +306,22 @@ export default function ChatThreadPage() {
           </button>
         </div>
       </form>
+
+      {/* Image Zoom Modal */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setZoomImage(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomImage}
+            alt="프로필 사진"
+            className="max-w-full max-h-full rounded-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

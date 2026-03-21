@@ -74,6 +74,23 @@ export default function SurveyPage() {
     });
   }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 프로필 완성 여부 확인 — 미완성이면 setup 페이지로 리다이렉트
+  useEffect(() => {
+    let cancelled = false;
+    async function checkProfile() {
+      try {
+        const res = await fetch("/api/profile");
+        if (cancelled) return;
+        if (res.status === 401) { router.push("/login"); return; }
+        if (res.status === 404) { router.replace("/profile/setup"); return; }
+      } catch {
+        // 네트워크 오류 시 무시 (설문 페이지 그대로 유지)
+      }
+    }
+    checkProfile();
+    return () => { cancelled = true; };
+  }, [router]);
+
   // 서버에서 기존 설문 데이터 로드 (드래프트 없는 경우에만 적용)
   useEffect(() => {
     let cancelled = false;

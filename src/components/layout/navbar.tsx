@@ -27,7 +27,7 @@ export function Navbar() {
       {/* Top header (desktop) */}
       <header className="sticky top-0 z-50 glass border-b border-pink-100">
         <div className="container mx-auto max-w-lg flex items-center justify-between h-14 px-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/matches" className="flex items-center gap-2">
             <Heart size={24} fill="hsl(340, 82%, 62%)" strokeWidth={0} />
             <span className="text-lg font-bold text-gradient-pink">이어줌</span>
           </Link>

@@ -105,6 +105,46 @@ export default function ProfileSetupPage() {
       ? "성격은 10자 이상 작성해주세요."
       : null;
 
+  // DOB 유효성: 세 필드가 모두 채워진 경우 날짜 형식 검사
+  const dobError = (() => {
+    if (!dobYear && !dobMonth && !dobDay) return null; // 미입력 상태 — 그냥 비워둠
+    if (!dobYear || !dobMonth || !dobDay) return null; // 일부만 입력 — 포커스 이동 중
+    const y = Number(dobYear);
+    const m = Number(dobMonth);
+    const d = Number(dobDay);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return "숫자만 입력해주세요.";
+    if (m < 1 || m > 12) return "월은 1~12 사이여야 합니다.";
+    if (d < 1 || d > 31) return "일은 1~31 사이여야 합니다.";
+    // 해당 월의 마지막 날 초과 체크
+    const maxDay = new Date(y, m, 0).getDate();
+    if (d > maxDay) return `${m}월은 최대 ${maxDay}일까지 있습니다.`;
+    return null;
+  })();
+
+  // 필수 항목 전부 채워졌는지 확인
+  function isFormValid(): boolean {
+    if (!form.gender) return false;
+    if (!dobYear || dobYear.length < 4) return false;
+    if (!dobMonth) return false;
+    if (!dobDay) return false;
+    if (dobError) return false;
+    if (!form.nickname || form.nickname.trim().length < 2) return false;
+    if (!form.jobCategory) return false;
+    if (!form.jobDetail || form.jobDetail.trim().length < 1) return false;
+    if (!form.companyProvince || !form.companyDistrict) return false;
+    if (!form.residenceProvince || !form.residenceDistrict) return false;
+    if (!form.hometownProvince || !form.hometownDistrict) return false;
+    if (form.personality.length < 10) return false;
+    if (form.hobbies.length === 0) return false;
+    if (form.preferences.length === 0) return false;
+    if (!form.mbti) return false;
+    if (!form.bloodType) return false;
+    if (!form.religion) return false;
+    if (!form.drinking) return false;
+    if (!form.smoking) return false;
+    return true;
+  }
+
   function splitLocation(location?: string | null) {
     if (!location) return ["", ""] as const;
     const [province = "", district = ""] = location.split("|");
@@ -454,7 +494,9 @@ export default function ProfileSetupPage() {
             />
             <span className="text-muted-foreground text-sm">일</span>
           </div>
-          {fieldErrors.dateOfBirth && <p className="text-xs text-destructive mt-2">{fieldErrors.dateOfBirth}</p>}
+          {(dobError || fieldErrors.dateOfBirth) && (
+            <p className="text-xs text-destructive mt-2">{dobError || fieldErrors.dateOfBirth}</p>
+          )}
         </div>
 
         {/* Nickname */}
@@ -823,11 +865,16 @@ export default function ProfileSetupPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading || form.personality.length < 10}
-          className="btn-gradient w-full disabled:opacity-50"
+          disabled={loading || !isFormValid()}
+          className="btn-gradient w-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "저장 중..." : "프로필 저장"}
         </button>
+        {!isFormValid() && !loading && (
+          <p className="text-xs text-center text-muted-foreground mt-1">
+            * 표시된 필수 항목을 모두 입력해야 저장할 수 있습니다.
+          </p>
+        )}
       </form>
     </div>
   );

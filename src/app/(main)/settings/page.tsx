@@ -72,7 +72,7 @@ export default function SettingsPage() {
         <button
           onClick={toggleStopMatching}
           disabled={saving}
-          className="w-full flex items-center justify-between"
+          className="w-full flex items-center justify-between cursor-pointer disabled:cursor-not-allowed"
         >
           <div className="flex items-center gap-3">
             {stopMatching ? (

@@ -193,6 +193,9 @@ model ChatThread {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  photoRevealA Boolean  @default(false) // userA가 사진 공개 동의
+  photoRevealB Boolean  @default(false) // userB가 사진 공개 동의
+
   match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
   userA    User      @relation("ThreadUserA", fields: [userAId], references: [id], onDelete: Cascade)
   userB    User      @relation("ThreadUserB", fields: [userBId], references: [id], onDelete: Cascade)

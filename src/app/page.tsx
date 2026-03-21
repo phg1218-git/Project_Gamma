@@ -1,13 +1,19 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Heart } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 /**
  * Landing Page
  *
  * Public page shown to unauthenticated users.
- * Romantic pink theme with call-to-action to sign in.
+ * Authenticated users are redirected to /matches.
  */
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth();
+  if (session?.user?.id) {
+    redirect("/matches");
+  }
   return (
     <main className="min-h-screen bg-gradient-romantic flex flex-col items-center justify-center px-4">
       {/* Hero Section */}

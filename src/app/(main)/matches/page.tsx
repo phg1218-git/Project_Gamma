@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Heart, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp,
   User, X, Brain, Droplet, Church, Wine, Cigarette, Ruler, Star,
@@ -24,6 +25,7 @@ interface MatchData {
   age: number;
   jobCategory: string;
   residenceProvince: string;
+  profileImage: string | null;
   score: {
     surveySimilarity: number;
     lifestyle: number;
@@ -57,12 +59,15 @@ interface PartnerProfile {
 }
 
 export default function MatchesPage() {
+  const router = useRouter();
   const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [profileModal, setProfileModal] = useState<PartnerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   async function handleViewProfile(userId: string) {
     setProfileLoading(true);
@@ -86,6 +91,7 @@ export default function MatchesPage() {
         const data = await res.json();
         setMatches(data.matches || []);
         setMessage(data.message || null);
+        setNeedsSetup(data.needsSetup ?? false);
       }
     } catch (error) {
       console.error("Failed to fetch matches:", error);
@@ -152,20 +158,33 @@ export default function MatchesPage() {
         </button>
       </div>
 
-      {message && (
-        <div className="card-romantic p-4 mb-4 text-center">
-          <p className="text-sm text-muted-foreground">{message}</p>
+      {/* 프로필/설문 미완성 — 작성 유도 */}
+      {needsSetup && message && (
+        <div className="card-romantic p-6 mb-4 text-center">
+          <Heart className="mx-auto mb-3 text-pink-200" size={40} />
+          <p className="text-sm text-muted-foreground mb-4">{message}</p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => router.push("/profile/setup")}
+              className="btn-gradient text-sm py-2"
+            >
+              프로필 작성하기
+            </button>
+            <button
+              onClick={() => router.push("/survey")}
+              className="py-2 rounded-xl border border-pink-200 text-sm font-medium text-primary hover:bg-pink-50 transition-colors"
+            >
+              설문 작성하기
+            </button>
+          </div>
         </div>
       )}
 
-      {matches.length === 0 && !message && (
+      {/* 매칭 후보 없음 (프로필/설문은 완성된 상태) */}
+      {matches.length === 0 && message && !needsSetup && (
         <div className="card-romantic p-8 text-center">
           <Heart className="mx-auto mb-3 text-pink-200" size={48} />
-          <p className="text-sm text-muted-foreground">
-            아직 매칭 결과가 없습니다.
-            <br />
-            프로필과 설문을 완료하면 매칭이 시작됩니다.
-          </p>
+          <p className="text-sm text-muted-foreground">{message}</p>
         </div>
       )}
 
@@ -178,6 +197,7 @@ export default function MatchesPage() {
             onAccept={() => handleAction(match.matchId, "ACCEPTED")}
             onReject={() => handleAction(match.matchId, "REJECTED")}
             onViewProfile={() => handleViewProfile(match.userId)}
+            onZoomImage={setZoomImage}
             profileLoading={profileLoading}
           />
         ))}
@@ -188,7 +208,24 @@ export default function MatchesPage() {
         <ProfileModal
           profile={profileModal}
           onClose={() => setProfileModal(null)}
+          onZoomImage={setZoomImage}
         />
+      )}
+
+      {/* Image Zoom Modal */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setZoomImage(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomImage}
+            alt="프로필 사진"
+            className="max-w-full max-h-full rounded-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   );
@@ -200,12 +237,14 @@ function MatchCard({
   onAccept,
   onReject,
   onViewProfile,
+  onZoomImage,
   profileLoading,
 }: {
   match: MatchData;
   onAccept: () => void;
   onReject: () => void;
   onViewProfile: () => void;
+  onZoomImage: (src: string) => void;
   profileLoading: boolean;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -226,10 +265,27 @@ function MatchCard({
       {/* Profile Info */}
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-            <span className="text-lg font-bold text-primary">
-              {match.nickname.charAt(0)}
-            </span>
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+            {match.profileImage ? (
+              <button
+                type="button"
+                onClick={() => onZoomImage(match.profileImage!)}
+                className="w-full h-full"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={match.profileImage}
+                  alt={match.nickname}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ) : (
+              <div className="w-full h-full bg-pink-100 flex items-center justify-center">
+                <span className="text-lg font-bold text-primary">
+                  {match.nickname.charAt(0)}
+                </span>
+              </div>
+            )}
           </div>
           <div>
             <h3 className="font-semibold">{match.nickname}</h3>
@@ -337,9 +393,11 @@ function ScoreDots({ label, value, max }: { label: string; value: number; max: n
 function ProfileModal({
   profile,
   onClose,
+  onZoomImage,
 }: {
   profile: PartnerProfile;
   onClose: () => void;
+  onZoomImage: (src: string) => void;
 }) {
   const age = calculateAge(new Date(profile.dateOfBirth));
   const residence = parseLocation(profile.residenceLocation);
@@ -362,12 +420,18 @@ function ProfileModal({
           {/* Avatar + Basic Info */}
           <div className="text-center">
             {profile.profileImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.profileImage}
-                alt={profile.nickname}
-                className="w-20 h-20 rounded-full mx-auto mb-3 object-cover"
-              />
+              <button
+                type="button"
+                onClick={() => onZoomImage(profile.profileImage!)}
+                className="mx-auto mb-3 block"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profile.profileImage}
+                  alt={profile.nickname}
+                  className="w-20 h-20 rounded-full object-cover hover:opacity-90 transition-opacity"
+                />
+              </button>
             ) : (
               <div className="w-20 h-20 rounded-full bg-gradient-pink mx-auto mb-3 flex items-center justify-center">
                 <span className="text-2xl font-bold text-white">
