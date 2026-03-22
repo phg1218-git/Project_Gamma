@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { Heart } from "lucide-react";
 
 /**
@@ -81,7 +82,15 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-xs text-muted-foreground">
-          로그인하면 이어줌의 서비스 약관에 동의하게 됩니다.
+          로그인하면 이어줌의{" "}
+          <Link href="/terms" className="underline hover:text-primary transition-colors">
+            서비스 이용약관
+          </Link>
+          {" "}및{" "}
+          <Link href="/privacy" className="underline hover:text-primary transition-colors">
+            개인정보처리방침
+          </Link>
+          에 동의하게 됩니다.
         </p>
       </div>
     </div>

@@ -2,7 +2,7 @@
 # 이어줌 (Connecting) — CI Pipeline
 # ============================================
 # Runs on every PR to main and develop branches.
-# Checks: TypeScript, ESLint, Build verification.
+# Checks: TypeScript, ESLint, Tests, Build verification.
 
 name: CI
 
@@ -14,6 +14,11 @@ on:
 
 env:
   NODE_VERSION: '20'
+  # prisma generate, tsc 모두 실제 DB 연결 없이 작동하지만
+  # Next.js 빌드 시 env 가 참조될 수 있으므로 quality job 에도 dummy 값을 설정한다.
+  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  NEXTAUTH_SECRET: "ci-dummy-secret-not-real"
+  NEXTAUTH_URL: "http://localhost:3000"
 
 jobs:
   quality:
@@ -42,6 +47,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
   build:
     name: Build Verification
     runs-on: ubuntu-latest
@@ -65,8 +73,3 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          # Dummy values for build — real secrets are in Vercel
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-          NEXTAUTH_SECRET: "build-time-dummy-secret-not-real"
-          NEXTAUTH_URL: "http://localhost:3000"

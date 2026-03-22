@@ -93,9 +93,10 @@ const config: Config = {
         sm: "0.5rem",
       },
       // ── Font Family ──
+      // --font-sans 는 next/font (layout.tsx) 가 <html class="..."> 에 주입함
       fontFamily: {
         sans: [
-          "Pretendard",
+          "var(--font-sans)",
           "-apple-system",
           "BlinkMacSystemFont",
           "system-ui",

@@ -5,8 +5,12 @@ import { auth } from "@/lib/auth";
 /**
  * GET /api/profile/[userId] — View a matched partner's profile
  *
- * Access control: Only allows viewing profiles of users
- * with whom the current user has an existing match.
+ * 익명성 정책:
+ *   PENDING  — 기본 정보(닉네임·나이·직군·거주지 시/도·취미·선호·MBTI 등)만 공개.
+ *              상세 직장·성격 텍스트·닮은꼴·프로필 사진은 마스킹.
+ *   ACCEPTED — 모든 필드 공개 (상호 수락한 경우).
+ *
+ * Access control: 두 사용자 사이에 PENDING 또는 ACCEPTED 매칭이 있어야 함.
  */
 export async function GET(
   _request: Request,
@@ -34,11 +38,14 @@ export async function GET(
           { senderId: userId, receiverId: currentUserId },
         ],
       },
+      select: { status: true },
     });
 
     if (!match) {
       return NextResponse.json({ error: "매칭된 상대만 조회할 수 있습니다." }, { status: 403 });
     }
+
+    const isAccepted = match.status === "ACCEPTED";
 
     const profile = await prisma.profile.findUnique({
       where: { userId },
@@ -48,9 +55,12 @@ export async function GET(
         gender: true,
         height: true,
         jobCategory: true,
-        jobDetail: true,
+        // PENDING 단계에서 상세 직장 정보는 비공개
+        jobDetail: isAccepted,
+        // 거주지는 시/도 수준까지만 — 클라이언트에서 parseLocation으로 분리
         residenceLocation: true,
-        personality: true,
+        // 성격 텍스트: ACCEPTED 이후 공개
+        personality: isAccepted,
         hobbies: true,
         preferences: true,
         mbti: true,
@@ -58,8 +68,9 @@ export async function GET(
         religion: true,
         drinking: true,
         smoking: true,
-        celebrity: true,
-        profileImage: true,
+        // 닮은꼴·프로필 사진: 상호 수락 이후 공개
+        celebrity: isAccepted,
+        profileImage: isAccepted,
       },
     });
 
@@ -67,7 +78,7 @@ export async function GET(
       return NextResponse.json({ error: "상대방 프로필이 없습니다." }, { status: 404 });
     }
 
-    return NextResponse.json(profile);
+    return NextResponse.json({ ...profile, revealLevel: isAccepted ? "full" : "partial" });
   } catch (error) {
     console.error("[Profile GET userId]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });

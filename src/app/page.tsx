@@ -1,7 +1,22 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { auth } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "이어줌 — 당신의 인연을 이어줍니다",
+  description:
+    "구조화된 설문과 과학적 매칭 알고리즘으로 나에게 꼭 맞는 사람을 찾아보세요. 완전 익명 소개팅 매칭 플랫폼 이어줌.",
+  openGraph: {
+    title: "이어줌 — 당신의 인연을 이어줍니다",
+    description: "구조화된 설문과 과학적 매칭으로 당신의 인연을 이어줍니다.",
+    url: "/",
+  },
+  alternates: {
+    canonical: "/",
+  },
+};
 
 /**
  * Landing Page

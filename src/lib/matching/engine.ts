@@ -107,9 +107,9 @@ export async function findMatches(
       const score = computeCompatibilityScore(userAnswers, candidateAnswers);
       const profile = candidate.profile!;
 
-      // Calculate age dynamically
+      // Calculate age dynamically (만 나이, 생일 경과 여부 반영)
       const today = new Date();
-      const birth = new Date(profile.dateOfBirth);
+      const birth = profile.dateOfBirth; // already a Date from Prisma
       let age = today.getFullYear() - birth.getFullYear();
       const monthDiff = today.getMonth() - birth.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -137,16 +137,23 @@ export async function findMatches(
 
 /**
  * Save match results to the database.
- * Creates Match records for the top candidates.
+ *
+ * - minScore 이상인 결과만 저장한다.
+ * - 새 top-N에 포함되지 않은 기존 PENDING 매칭은 EXPIRED로 처리한다.
+ *   (REJECTED·ACCEPTED 는 건드리지 않는다.)
  */
 export async function saveMatchResults(
   userId: string,
   results: MatchResult[],
+  minScore: number = 0,
 ): Promise<void> {
-  // Use a transaction for atomicity
-  await prisma.$transaction(
-    results.map((result) =>
-      prisma.match.upsert({
+  const filtered = results.filter((r) => r.score.total >= minScore);
+  const newReceiverIds = filtered.map((r) => r.userId);
+
+  await prisma.$transaction(async (tx) => {
+    // 새 top-N upsert (status 는 기존 레코드가 있어도 변경하지 않음)
+    for (const result of filtered) {
+      await tx.match.upsert({
         where: {
           senderId_receiverId: {
             senderId: userId,
@@ -165,7 +172,25 @@ export async function saveMatchResults(
           breakdown: result.score as unknown as Record<string, number>,
           updatedAt: new Date(),
         },
-      }),
-    ),
-  );
+      });
+    }
+
+    // 새 top-N에 없는 기존 PENDING → EXPIRED (stale 정리)
+    if (newReceiverIds.length > 0) {
+      await tx.match.updateMany({
+        where: {
+          senderId: userId,
+          status: "PENDING",
+          receiverId: { notIn: newReceiverIds },
+        },
+        data: { status: "EXPIRED" },
+      });
+    } else {
+      // 결과가 0개면 모든 PENDING을 EXPIRED 처리
+      await tx.match.updateMany({
+        where: { senderId: userId, status: "PENDING" },
+        data: { status: "EXPIRED" },
+      });
+    }
+  });
 }

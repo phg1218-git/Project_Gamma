@@ -8,6 +8,22 @@ import { z } from "zod";
  * Used in API routes — never trust client input.
  */
 
+/**
+ * 만 나이 계산 (생일 경과 여부 반영)
+ * 오늘 날짜 기준으로 생일이 아직 지나지 않았으면 1을 빼서 정확한 만 나이를 반환한다.
+ *
+ * @param dateOfBirth - 생년월일
+ * @param referenceDate - 기준일 (기본값: 오늘, 테스트 시 임의 날짜 주입 가능)
+ */
+export function isAdult(dateOfBirth: Date, referenceDate: Date = new Date()): boolean {
+  let age = referenceDate.getFullYear() - dateOfBirth.getFullYear();
+  const monthDiff = referenceDate.getMonth() - dateOfBirth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && referenceDate.getDate() < dateOfBirth.getDate())) {
+    age--;
+  }
+  return age >= 19;
+}
+
 export const profileSchema = z.object({
   gender: z.enum(["MALE", "FEMALE"], {
     required_error: "성별을 선택해주세요.",
@@ -18,15 +34,17 @@ export const profileSchema = z.object({
     .refine((val) => !isNaN(Date.parse(val)), { message: "올바른 날짜를 입력해주세요." })
     .transform((val) => new Date(val))
     .refine((date) => {
-      // Must be at least 19 years old (Korean legal adult age)
-      const today = new Date();
-      const age = today.getFullYear() - date.getFullYear();
-      return age >= 19;
+      // 만 나이 기준 19세 이상 (생일 경과 여부 반영)
+      return isAdult(date);
     }, { message: "만 19세 이상만 가입할 수 있습니다." })
     .refine((date) => {
-      // Must not be unrealistically old
+      // 비현실적으로 오래된 날짜 차단
       const today = new Date();
-      const age = today.getFullYear() - date.getFullYear();
+      let age = today.getFullYear() - date.getFullYear();
+      const monthDiff = today.getMonth() - date.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+        age--;
+      }
       return age <= 100;
     }, { message: "올바른 생년월일을 입력해주세요." }),
 

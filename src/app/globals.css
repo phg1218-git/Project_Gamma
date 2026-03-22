@@ -1,5 +1,5 @@
-/* Import Pretendard font (Korean-optimized) — must be before @tailwind directives */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+/* 폰트는 src/app/layout.tsx 의 next/font (Noto_Sans_KR)로 로드합니다.
+   --font-sans CSS 변수가 <html> 에 주입됩니다. */
 
 @tailwind base;
 @tailwind components;

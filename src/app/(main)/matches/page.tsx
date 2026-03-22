@@ -65,6 +65,7 @@ export default function MatchesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [profileModal, setProfileModal] = useState<PartnerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export default function MatchesPage() {
   }
 
   const fetchMatches = useCallback(async () => {
+    setFetchError(false);
     try {
       const res = await fetch("/api/matches");
       if (res.ok) {
@@ -92,9 +94,12 @@ export default function MatchesPage() {
         setMatches(data.matches || []);
         setMessage(data.message || null);
         setNeedsSetup(data.needsSetup ?? false);
+      } else {
+        setFetchError(true);
       }
     } catch (error) {
       console.error("Failed to fetch matches:", error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -152,11 +157,27 @@ export default function MatchesPage() {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
+          aria-label="매칭 결과 새로고침"
           className="p-2 rounded-full bg-pink-50 hover:bg-pink-100 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={20} className={`text-primary ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
+
+      {/* 서버 통신 오류 */}
+      {fetchError && (
+        <div className="card-romantic p-6 mb-4 text-center" role="alert">
+          <p className="text-sm text-destructive font-medium mb-3">
+            매칭 정보를 불러오지 못했습니다.
+          </p>
+          <button
+            onClick={fetchMatches}
+            className="py-2 px-4 rounded-xl border border-pink-200 text-sm font-medium text-primary hover:bg-pink-50 transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
 
       {/* 프로필/설문 미완성 — 작성 유도 */}
       {needsSetup && message && (
@@ -215,6 +236,8 @@ export default function MatchesPage() {
       {/* Image Zoom Modal */}
       {zoomImage && (
         <div
+          role="dialog"
+          aria-label="프로필 사진 확대 보기"
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
           onClick={() => setZoomImage(null)}
         >
@@ -270,12 +293,13 @@ function MatchCard({
               <button
                 type="button"
                 onClick={() => onZoomImage(match.profileImage!)}
+                aria-label={`${match.nickname} 프로필 사진 확대`}
                 className="w-full h-full"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={match.profileImage}
-                  alt={match.nickname}
+                  alt={`${match.nickname} 프로필 사진`}
                   className="w-full h-full object-cover"
                 />
               </button>
@@ -411,7 +435,7 @@ function ProfileModal({
         {/* Modal Header */}
         <div className="sticky top-0 bg-white rounded-t-2xl border-b border-pink-100 px-4 py-3 flex items-center justify-between">
           <h3 className="font-semibold">프로필</h3>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-pink-50">
+          <button onClick={onClose} aria-label="프로필 닫기" className="p-1 rounded-full hover:bg-pink-50">
             <X size={20} className="text-muted-foreground" />
           </button>
         </div>
