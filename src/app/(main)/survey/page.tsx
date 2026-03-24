@@ -48,6 +48,7 @@ export default function SurveyPage() {
   );
 
   const [loading, setLoading] = useState(false);
+  const [serverLoading, setServerLoading] = useState(true); // 서버 데이터 로드 완료 전 로딩
   const [error, setError] = useState<string | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(() => loadDraftSavedAt());
   const [saveIndicator, setSaveIndicator] = useState(false); // 임시저장 완료 표시
@@ -111,16 +112,14 @@ export default function SurveyPage() {
           typeof existingAnswers === "object" &&
           !Array.isArray(existingAnswers)
         ) {
-          // 로컬 드래프트가 없을 때만 서버 데이터로 채움
-          const hasDraft = !!localStorage.getItem(DRAFT_KEY);
-          if (!hasDraft) {
-            setAnswers(existingAnswers);
-          }
+          // 서버 데이터를 기준으로, 로컬 드래프트가 있으면 드래프트 우선 병합
+          setAnswers((prev) => ({ ...existingAnswers, ...prev }));
         }
       } catch {
         // 프리필 실패는 무시
       } finally {
         serverLoadDone.current = true;
+        setServerLoading(false);
       }
     }
 
@@ -220,6 +219,14 @@ export default function SurveyPage() {
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
+  }
+
+  if (serverLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Heart className="heart-pulse" size={32} />
+      </div>
+    );
   }
 
   return (

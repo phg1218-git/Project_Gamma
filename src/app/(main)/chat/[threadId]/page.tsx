@@ -51,6 +51,11 @@ export default function ChatThreadPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  // messages가 변경될 때마다 자동으로 맨 아래로 스크롤
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
   // Fetch messages (initial load or poll for new ones)
   const fetchMessages = useCallback(async (isInitial: boolean = false) => {
     try {
@@ -75,7 +80,6 @@ export default function ChatThreadPage() {
             });
           }
           lastTimestampRef.current = newMessages[newMessages.length - 1].createdAt;
-          scrollToBottom();
         }
       }
     } catch (error) {
@@ -83,7 +87,7 @@ export default function ChatThreadPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [threadId, scrollToBottom]);
+  }, [threadId]);
 
   // Fetch photo reveal status
   const fetchPhotoReveal = useCallback(async () => {
@@ -128,7 +132,6 @@ export default function ChatThreadPage() {
         const msg = await res.json();
         setMessages((prev) => [...prev, msg]);
         lastTimestampRef.current = msg.createdAt;
-        scrollToBottom();
       }
     } catch (error) {
       console.error("Failed to send message:", error);
