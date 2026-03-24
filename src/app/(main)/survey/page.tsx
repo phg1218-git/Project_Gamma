@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, ChevronRight, ChevronLeft, Save, CheckCircle } from "lucide-react";
-import { SURVEY_CATEGORIES, getQuestionsByCategory, type SurveyQuestion } from "@/constants/survey-questions";
+import { SURVEY_CATEGORIES, SURVEY_QUESTIONS, getQuestionsByCategory, type SurveyQuestion } from "@/constants/survey-questions";
 
 const DRAFT_KEY = "survey_draft";
 
@@ -61,19 +61,10 @@ export default function SurveyPage() {
   const questions = getQuestionsByCategory(currentCategory.id);
   const progress = ((currentStep + 1) / categories.length) * 100;
 
-  // 페이지 이동 시 맨 위로 스크롤 + 슬라이더 기본값 초기화
+  // 페이지 이동 시 맨 위로 스크롤
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    setAnswers((prev) => {
-      const defaults: Record<string, number> = {};
-      for (const q of questions) {
-        if (q.type === "slider" && q.slider && prev[q.id] === undefined) {
-          defaults[q.id] = q.slider.min;
-        }
-      }
-      return Object.keys(defaults).length > 0 ? { ...defaults, ...prev } : prev;
-    });
-  }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   // 프로필 완성 여부 확인 — 미완성이면 setup 페이지로 리다이렉트
   useEffect(() => {
@@ -180,6 +171,7 @@ export default function SurveyPage() {
   function canProceed(): boolean {
     return questions.every((q) => {
       if (!q.required) return true;
+      if (q.type === "slider") return true; // 슬라이더는 항상 유효한 값(기본값)을 가짐
       const answer = answers[q.id];
       if (answer === undefined || answer === null) return false;
       if (Array.isArray(answer)) return answer.length > 0;
@@ -193,10 +185,18 @@ export default function SurveyPage() {
     setError(null);
 
     try {
+      // 사용자가 터치하지 않은 슬라이더는 기본값(min)으로 채움
+      const effectiveAnswers = { ...answers };
+      for (const q of SURVEY_QUESTIONS) {
+        if (q.type === "slider" && q.slider && effectiveAnswers[q.id] === undefined) {
+          effectiveAnswers[q.id] = q.slider.min;
+        }
+      }
+
       const res = await fetch("/api/survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
+        body: JSON.stringify(effectiveAnswers),
       });
 
       if (!res.ok) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart, ImageOff, Eye } from "lucide-react";
+import { ArrowLeft, Send, Heart, ImageOff, Eye, PhoneOff } from "lucide-react";
 
 /**
  * Individual Chat Thread Page
@@ -37,6 +37,9 @@ export default function ChatThreadPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isActive, setIsActive] = useState(true);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [photoReveal, setPhotoReveal] = useState<PhotoRevealState>({
     myReveal: false,
     partnerReveal: false,
@@ -69,6 +72,9 @@ export default function ChatThreadPage() {
         const data = await res.json();
         const newMessages = data.messages as Message[];
 
+        if (typeof data.isActive === "boolean") {
+          setIsActive(data.isActive);
+        }
         if (newMessages.length > 0) {
           if (isInitial) {
             setMessages(newMessages);
@@ -141,6 +147,22 @@ export default function ChatThreadPage() {
     }
   }
 
+  async function handleCloseChat() {
+    setClosing(true);
+    try {
+      const res = await fetch(`/api/chat/${threadId}`, { method: "PATCH" });
+      if (res.ok) {
+        setIsActive(false);
+        setShowCloseConfirm(false);
+        router.push("/chat");
+      }
+    } catch (error) {
+      console.error("Failed to close chat:", error);
+    } finally {
+      setClosing(false);
+    }
+  }
+
   async function handlePhotoReveal() {
     setRevealLoading(true);
     try {
@@ -199,39 +221,61 @@ export default function ChatThreadPage() {
 
         <h2 className="font-semibold flex-1">채팅</h2>
 
-        {/* Photo reveal button */}
-        <button
-          onClick={handlePhotoReveal}
-          disabled={revealLoading}
-          title={photoReveal.myReveal ? "사진 공개 취소" : "사진 공개하기"}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
-            photoReveal.myReveal
-              ? "bg-primary text-white"
-              : "bg-pink-50 text-primary hover:bg-pink-100"
-          }`}
-        >
-          {bothRevealed ? (
-            <Eye size={13} />
-          ) : (
-            <ImageOff size={13} />
-          )}
-          {photoReveal.myReveal
-            ? bothRevealed
-              ? "사진 공개 중"
-              : "공개 대기 중"
-            : "사진 공개"}
-        </button>
+        {/* Photo reveal button (활성 채팅만) */}
+        {isActive && (
+          <button
+            onClick={handlePhotoReveal}
+            disabled={revealLoading}
+            title={photoReveal.myReveal ? "사진 공개 취소" : "사진 공개하기"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
+              photoReveal.myReveal
+                ? "bg-primary text-white"
+                : "bg-pink-50 text-primary hover:bg-pink-100"
+            }`}
+          >
+            {bothRevealed ? (
+              <Eye size={13} />
+            ) : (
+              <ImageOff size={13} />
+            )}
+            {photoReveal.myReveal
+              ? bothRevealed
+                ? "사진 공개 중"
+                : "공개 대기 중"
+              : "사진 공개"}
+          </button>
+        )}
+
+        {/* 채팅 종료 버튼 (활성 채팅만) */}
+        {isActive && (
+          <button
+            onClick={() => setShowCloseConfirm(true)}
+            title="채팅 종료"
+            className="p-1.5 rounded-full text-muted-foreground hover:bg-red-50 hover:text-red-400 transition-colors"
+          >
+            <PhoneOff size={16} />
+          </button>
+        )}
       </div>
 
+      {/* 채팅 종료됨 배너 */}
+      {!isActive && (
+        <div className="py-2 px-3 bg-gray-50 border-b border-gray-200 text-center">
+          <p className="text-xs text-muted-foreground">
+            이 채팅은 종료되었습니다. 메시지를 보낼 수 없으며 30일 후 자동 삭제됩니다.
+          </p>
+        </div>
+      )}
+
       {/* Photo reveal status banner */}
-      {photoReveal.myReveal && !bothRevealed && (
+      {isActive && photoReveal.myReveal && !bothRevealed && (
         <div className="py-2 px-3 bg-pink-50 border-b border-pink-100 text-center">
           <p className="text-xs text-primary">
             사진 공개를 요청했습니다. 상대방도 동의하면 서로의 사진을 볼 수 있어요.
           </p>
         </div>
       )}
-      {bothRevealed && (
+      {isActive && bothRevealed && (
         <div className="py-2 px-3 bg-green-50 border-b border-green-100 text-center">
           <p className="text-xs text-green-600">
             서로 사진을 공개했습니다! 상대방 사진을 확인해보세요.
@@ -290,25 +334,65 @@ export default function ChatThreadPage() {
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSend} className="pt-3 border-t border-pink-100">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="메시지를 입력하세요..."
-            maxLength={1000}
-            className="flex-1 px-4 py-2.5 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || sending}
-            className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 transition-opacity"
-          >
-            <Send size={16} className="text-white" />
-          </button>
+      {isActive ? (
+        <form onSubmit={handleSend} className="pt-3 border-t border-pink-100">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="메시지를 입력하세요..."
+              maxLength={1000}
+              className="flex-1 px-4 py-2.5 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || sending}
+              className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 transition-opacity"
+            >
+              <Send size={16} className="text-white" />
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="pt-3 border-t border-gray-100 text-center">
+          <p className="text-xs text-muted-foreground py-2">채팅이 종료되어 메시지를 보낼 수 없습니다.</p>
         </div>
-      </form>
+      )}
+
+      {/* 채팅 종료 확인 다이얼로그 */}
+      {showCloseConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowCloseConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-bold text-base mb-2">채팅을 종료하시겠어요?</h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              채팅을 종료하면 더 이상 메시지를 보낼 수 없습니다.
+              대화 내역은 30일 동안 보관된 후 자동으로 삭제됩니다.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCloseChat}
+                disabled={closing}
+                className="flex-1 py-2.5 rounded-xl bg-red-400 text-sm font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+              >
+                {closing ? "종료 중..." : "채팅 종료"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Zoom Modal */}
       {zoomImage && (

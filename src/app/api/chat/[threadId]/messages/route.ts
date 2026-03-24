@@ -36,6 +36,7 @@ export async function GET(request: Request, context: RouteContext) {
         id: threadId,
         OR: [{ userAId: userId }, { userBId: userId }],
       },
+      select: { id: true, isActive: true },
     });
 
     if (!thread) {
@@ -94,7 +95,7 @@ export async function GET(request: Request, context: RouteContext) {
       isMine: msg.senderId === userId,
     }));
 
-    return NextResponse.json({ messages: formattedMessages });
+    return NextResponse.json({ messages: formattedMessages, isActive: thread.isActive });
   } catch (error) {
     console.error("[Messages GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });

@@ -17,6 +17,15 @@ export async function GET() {
 
     const userId = session.user.id;
 
+    // 30일 이상 경과한 종료된 채팅방 자동 삭제 (메시지도 Cascade 삭제)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await prisma.chatThread.deleteMany({
+      where: {
+        isActive: false,
+        closedAt: { lt: thirtyDaysAgo },
+      },
+    });
+
     // Fetch all threads where the user is a participant
     const threads = await prisma.chatThread.findMany({
       where: {

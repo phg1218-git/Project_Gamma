@@ -37,6 +37,7 @@ export async function GET() {
         receiver: {
           include: { profile: true },
         },
+        chatThread: { select: { id: true } },
       },
       orderBy: { score: "desc" },
       take: 20,
@@ -69,6 +70,7 @@ export async function GET() {
                 },
               },
             },
+            chatThread: { select: { id: true } },
           },
           orderBy: { score: "desc" },
           take: 20,
@@ -208,6 +210,7 @@ function formatMatches(
     breakdown: unknown;
     status: string;
     createdAt: Date;
+    chatThread: { id: string } | null;
     receiver: {
       id: string;
       profile: {
@@ -246,6 +249,7 @@ function formatMatches(
         score: m.breakdown,
         totalScore: m.score,
         status: m.status,
+        chatThreadId: m.chatThread?.id || null,
         createdAt: m.createdAt.toISOString(),
       };
     }),

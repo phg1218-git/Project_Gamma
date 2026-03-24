@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Heart, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp,
   User, X, Brain, Droplet, Church, Wine, Cigarette, Ruler, Star,
-  Smile, Music,
+  Smile, Music, MessageCircle,
 } from "lucide-react";
 import { JOB_CATEGORY_LABELS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS } from "@/constants/enums";
 import { calculateAge, parseLocation } from "@/lib/utils";
@@ -35,6 +35,7 @@ interface MatchData {
   };
   totalScore: number;
   status: string;
+  chatThreadId: string | null;
   createdAt: string;
 }
 
@@ -219,6 +220,7 @@ export default function MatchesPage() {
             onReject={() => handleAction(match.matchId, "REJECTED")}
             onViewProfile={() => handleViewProfile(match.userId)}
             onZoomImage={setZoomImage}
+            onChatStart={match.chatThreadId ? () => router.push(`/chat/${match.chatThreadId}`) : undefined}
             profileLoading={profileLoading}
           />
         ))}
@@ -261,6 +263,7 @@ function MatchCard({
   onReject,
   onViewProfile,
   onZoomImage,
+  onChatStart,
   profileLoading,
 }: {
   match: MatchData;
@@ -268,6 +271,7 @@ function MatchCard({
   onReject: () => void;
   onViewProfile: () => void;
   onZoomImage: (src: string) => void;
+  onChatStart?: () => void;
   profileLoading: boolean;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -351,10 +355,10 @@ function MatchCard({
 
         {showBreakdown && match.score && (
           <div className="space-y-2.5 mb-3">
-            <ScoreDots label="설문 유사도" value={match.score.surveySimilarity} max={45} />
-            <ScoreDots label="라이프스타일" value={match.score.lifestyle} max={25} />
-            <ScoreDots label="가치관 일치" value={match.score.valueAlignment} max={20} />
-            <ScoreDots label="성격 호환" value={match.score.personality} max={10} />
+            <ScoreDots label="설문 유사도" value={match.score.surveySimilarity} max={45} description="연애관·갈등 해결·소통 방식의 유사도" />
+            <ScoreDots label="라이프스타일" value={match.score.lifestyle} max={25} description="주말 활동·취침 시간·소비 성향·청결도" />
+            <ScoreDots label="가치관 일치" value={match.score.valueAlignment} max={20} description="결혼·자녀 계획·커리어 방향성" />
+            <ScoreDots label="성격 호환" value={match.score.personality} max={10} description="내외향성·즉흥성·도전 성향·유머 스타일" />
           </div>
         )}
 
@@ -372,9 +376,18 @@ function MatchCard({
             </button>
           </div>
         )}
-        {match.status === "ACCEPTED" && (
+        {match.status === "ACCEPTED" && onChatStart && (
+          <button
+            onClick={onChatStart}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gradient-pink text-sm font-medium text-white"
+          >
+            <MessageCircle size={15} />
+            서로 통했습니다! 채팅을 시작해보세요
+          </button>
+        )}
+        {match.status === "ACCEPTED" && !onChatStart && (
           <div className="text-center py-2 rounded-xl bg-pink-50 text-sm font-medium text-primary">
-            수락됨 — 상대방의 수락을 기다리고 있습니다
+            관심을 보냈습니다! 상대방의 응답을 기다리고 있어요 💌
           </div>
         )}
         {match.status === "REJECTED" && (
@@ -387,16 +400,23 @@ function MatchCard({
   );
 }
 
-// ── Score Dots Component (5 circles with partial fill) ──
-function ScoreDots({ label, value, max }: { label: string; value: number; max: number }) {
+// ── Score Dots Component (5 circles with partial fill + hover tooltip) ──
+function ScoreDots({ label, value, max, description }: { label: string; value: number; max: number; description: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
   const ratio = max > 0 ? (value / max) * 5 : 0;
   const full = Math.floor(ratio);
   const partial = ratio - full;
+  const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
 
   return (
     <div className="flex items-center justify-between">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex gap-1.5">
+      <div
+        className="relative flex gap-1.5 cursor-help"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={() => setShowTooltip((v) => !v)}
+      >
         {[0, 1, 2, 3, 4].map((i) => {
           if (i < full) {
             return <div key={i} className="w-3.5 h-3.5 rounded-full bg-primary" />;
@@ -408,6 +428,16 @@ function ScoreDots({ label, value, max }: { label: string; value: number; max: n
           }
           return <div key={i} className="w-3.5 h-3.5 rounded-full bg-pink-100" />;
         })}
+
+        {showTooltip && (
+          <div className="absolute right-0 bottom-6 z-10 bg-white border border-pink-100 rounded-xl p-3 shadow-lg w-48 pointer-events-none">
+            <p className="font-semibold text-xs text-foreground mb-1">{label}</p>
+            <p className="text-xs text-primary font-medium">
+              {value.toFixed(1)} / {max}점 ({percentage}%)
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{description}</p>
+          </div>
+        )}
       </div>
     </div>
   );
