@@ -98,38 +98,44 @@ export async function findMatches(
   // 4. Score each candidate
   const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
 
-  const scoredCandidates: MatchResult[] = filteredCandidates
-    .map((candidate) => {
-      const candidateAnswers = candidate.surveyResponse!.answers as Record<
-        string,
-        number | string | string[]
-      >;
-      const score = computeCompatibilityScore(userAnswers, candidateAnswers);
-      const profile = candidate.profile!;
+  const rawScored = filteredCandidates.map((candidate) => {
+    const candidateAnswers = candidate.surveyResponse!.answers as Record<
+      string,
+      number | string | string[]
+    >;
+    const score = computeCompatibilityScore(userAnswers, candidateAnswers);
+    const profile = candidate.profile!;
 
-      // Calculate age dynamically (만 나이, 생일 경과 여부 반영)
-      const today = new Date();
-      const birth = profile.dateOfBirth; // already a Date from Prisma
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
+    // Calculate age dynamically (만 나이, 생일 경과 여부 반영)
+    const today = new Date();
+    const birth = profile.dateOfBirth; // already a Date from Prisma
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
 
-      // Extract province from location
-      const [residenceProvince] = profile.residenceLocation.split("|");
+    // Extract province from location
+    const [residenceProvince] = profile.residenceLocation.split("|");
 
-      return {
-        userId: candidate.id,
-        nickname: profile.nickname,
-        age,
-        jobCategory: profile.jobCategory,
-        residenceProvince,
-        score,
-      };
-    })
-    // 5. Sort by total score descending
-    .sort((a, b) => b.score.total - a.score.total);
+    return {
+      userId: candidate.id,
+      nickname: profile.nickname,
+      age,
+      jobCategory: profile.jobCategory,
+      residenceProvince,
+      score,
+      // 상대방의 최소 매칭 점수 — 상호 충족 여부 확인용 (반환값에 포함하지 않음)
+      _candidateMinScore: profile.minMatchScore ?? 0,
+    };
+  });
+
+  // 5. 상대방의 최소 점수 기준도 충족하는 경우만 남김 (상호 매칭 조건)
+  const scoredCandidates: MatchResult[] = rawScored
+    .filter((r) => r.score.total >= r._candidateMinScore)
+    // 6. Sort by total score descending
+    .sort((a, b) => b.score.total - a.score.total)
+    .map(({ _candidateMinScore: _ignored, ...rest }) => rest);
 
   // 6. Return top N
   return scoredCandidates.slice(0, limit);
