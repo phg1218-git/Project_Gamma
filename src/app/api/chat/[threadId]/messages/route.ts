@@ -40,8 +40,10 @@ export async function GET(request: Request, context: RouteContext) {
         id: true,
         isActive: true,
         userAId: true,
-        userA: { select: { profile: { select: { nickname: true } } } },
-        userB: { select: { profile: { select: { nickname: true } } } },
+        photoRevealA: true,
+        photoRevealB: true,
+        userA: { select: { profile: { select: { nickname: true, profileImage: true } } } },
+        userB: { select: { profile: { select: { nickname: true, profileImage: true } } } },
       },
     });
 
@@ -49,8 +51,15 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const partner = thread.userAId === userId ? thread.userB : thread.userA;
+    const isUserA = thread.userAId === userId;
+    const partner = isUserA ? thread.userB : thread.userA;
     const partnerNickname = partner?.profile?.nickname ?? "상대방";
+
+    // photo reveal 상태 계산 (별도 API 폴링 대체)
+    const myReveal = isUserA ? thread.photoRevealA : thread.photoRevealB;
+    const partnerReveal = isUserA ? thread.photoRevealB : thread.photoRevealA;
+    const bothRevealed = thread.photoRevealA && thread.photoRevealB;
+    const partnerPhoto = bothRevealed ? (partner?.profile?.profileImage ?? null) : null;
 
     // Parse and validate query params
     const url = new URL(request.url);
@@ -124,6 +133,7 @@ export async function GET(request: Request, context: RouteContext) {
         id: r.id,
         readAt: r.readAt!.toISOString(),
       })),
+      photoReveal: { myReveal, partnerReveal, partnerPhoto },
     });
   } catch (error) {
     console.error("[Messages GET]", error);

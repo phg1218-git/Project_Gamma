@@ -79,6 +79,10 @@ export default function ChatThreadPage() {
         if (data.partnerNickname) {
           setPartnerNickname(data.partnerNickname);
         }
+        // photoReveal 상태 갱신 (별도 폴링 대체)
+        if (data.photoReveal) {
+          setPhotoReveal(data.photoReveal);
+        }
         // 읽음 처리된 내 메시지 readAt 갱신
         if (data.readReceipts?.length > 0) {
           const receiptMap = new Map<string, string>(
@@ -112,29 +116,26 @@ export default function ChatThreadPage() {
     }
   }, [threadId]);
 
-  // Fetch photo reveal status
-  const fetchPhotoReveal = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/chat/${threadId}/reveal`);
-      if (res.ok) {
-        const data = await res.json();
-        setPhotoReveal(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch photo reveal:", error);
-    }
-  }, [threadId]);
-
-  // Initial fetch + polling
+  // Initial fetch + polling (탭 활성: 5초, 탭 숨김: 30초)
   useEffect(() => {
     fetchMessages(true);
-    fetchPhotoReveal();
-    const interval = setInterval(() => {
-      fetchMessages(false);
-      fetchPhotoReveal();
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [fetchMessages, fetchPhotoReveal]);
+
+    let interval: ReturnType<typeof setInterval>;
+
+    function startPolling() {
+      clearInterval(interval);
+      const ms = document.visibilityState === "visible" ? 5000 : 30000;
+      interval = setInterval(() => fetchMessages(false), ms);
+    }
+
+    startPolling();
+    document.addEventListener("visibilitychange", startPolling);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", startPolling);
+    };
+  }, [fetchMessages]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();

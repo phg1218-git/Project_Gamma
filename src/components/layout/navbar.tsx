@@ -42,7 +42,7 @@ export function Navbar() {
     }
 
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30_000);
+    const interval = setInterval(fetchUnread, 60_000);
 
     // 탭 포커스 시 즉시 갱신
     function onVisible() {
