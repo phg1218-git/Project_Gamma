@@ -37,7 +37,6 @@ export async function GET() {
         receiver: {
           include: { profile: true },
         },
-        chatThread: { select: { id: true } },
       },
       orderBy: { score: "desc" },
       take: 20,
@@ -70,7 +69,6 @@ export async function GET() {
                 },
               },
             },
-            chatThread: { select: { id: true } },
           },
           orderBy: { score: "desc" },
           take: 20,
@@ -85,7 +83,8 @@ export async function GET() {
           });
         }
 
-        return NextResponse.json(formatMatches(newMatches, session.user.id));
+        const chatThreadMap = await buildChatThreadMap(session.user.id, newMatches.map(m => m.receiver.id));
+        return NextResponse.json(formatMatches(newMatches, session.user.id, chatThreadMap));
       } catch (matchError) {
         // Profile or survey not complete
         return NextResponse.json({
@@ -96,7 +95,8 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(formatMatches(matches, session.user.id));
+    const chatThreadMap = await buildChatThreadMap(session.user.id, matches.map(m => m.receiver.id));
+    return NextResponse.json(formatMatches(matches, session.user.id, chatThreadMap));
   } catch (error) {
     console.error("[Matches GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
@@ -202,6 +202,30 @@ export async function PATCH(request: Request) {
   }
 }
 
+// ── Helper: receiverId → chatThreadId 맵 조회 (참여자 기준, matchId 무관) ──
+async function buildChatThreadMap(
+  userId: string,
+  receiverIds: string[],
+): Promise<Map<string, string>> {
+  const threads = await prisma.chatThread.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { userAId: userId, userBId: { in: receiverIds } },
+        { userBId: userId, userAId: { in: receiverIds } },
+      ],
+    },
+    select: { id: true, userAId: true, userBId: true },
+  });
+
+  const map = new Map<string, string>();
+  for (const t of threads) {
+    const partnerId = t.userAId === userId ? t.userBId : t.userAId;
+    map.set(partnerId, t.id);
+  }
+  return map;
+}
+
 // ── Helper: Format match records for API response ──
 function formatMatches(
   matches: Array<{
@@ -210,7 +234,6 @@ function formatMatches(
     breakdown: unknown;
     status: string;
     createdAt: Date;
-    chatThread: { id: string } | null;
     receiver: {
       id: string;
       profile: {
@@ -223,6 +246,7 @@ function formatMatches(
     };
   }>,
   _currentUserId: string,
+  chatThreadMap: Map<string, string>,
 ) {
   return {
     matches: matches.map((m) => {
@@ -249,7 +273,7 @@ function formatMatches(
         score: m.breakdown,
         totalScore: m.score,
         status: m.status,
-        chatThreadId: m.chatThread?.id || null,
+        chatThreadId: chatThreadMap.get(m.receiver.id) ?? null,
         createdAt: m.createdAt.toISOString(),
       };
     }),

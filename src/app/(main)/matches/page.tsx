@@ -293,27 +293,11 @@ function MatchCard({
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-            {match.profileImage ? (
-              <button
-                type="button"
-                onClick={() => onZoomImage(match.profileImage!)}
-                aria-label={`${match.nickname} 프로필 사진 확대`}
-                className="w-full h-full"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={match.profileImage}
-                  alt={`${match.nickname} 프로필 사진`}
-                  className="w-full h-full object-cover"
-                />
-              </button>
-            ) : (
-              <div className="w-full h-full bg-pink-100 flex items-center justify-center">
-                <span className="text-lg font-bold text-primary">
-                  {match.nickname.charAt(0)}
-                </span>
-              </div>
-            )}
+            <div className="w-full h-full bg-pink-100 flex items-center justify-center">
+              <span className="text-lg font-bold text-primary">
+                {match.nickname.charAt(0)}
+              </span>
+            </div>
           </div>
           <div>
             <h3 className="font-semibold">{match.nickname}</h3>
@@ -473,26 +457,11 @@ function ProfileModal({
         <div className="p-4 space-y-4">
           {/* Avatar + Basic Info */}
           <div className="text-center">
-            {profile.profileImage ? (
-              <button
-                type="button"
-                onClick={() => onZoomImage(profile.profileImage!)}
-                className="mx-auto mb-3 block"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={profile.profileImage}
-                  alt={profile.nickname}
-                  className="w-20 h-20 rounded-full object-cover hover:opacity-90 transition-opacity"
-                />
-              </button>
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-pink mx-auto mb-3 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {profile.nickname.charAt(0)}
-                </span>
-              </div>
-            )}
+            <div className="w-20 h-20 rounded-full bg-gradient-pink mx-auto mb-3 flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">
+                {profile.nickname.charAt(0)}
+              </span>
+            </div>
             <h2 className="text-xl font-bold">{profile.nickname}</h2>
             <p className="text-sm text-muted-foreground">
               {age}세 · {profile.gender === "MALE" ? "남성" : "여성"}

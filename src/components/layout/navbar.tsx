@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Heart, User, ClipboardList, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
  *
  * Fixed bottom nav for mobile-first design.
  * Highlights current active route with pink accent.
+ * Shows unread chat badge with 30s polling + tab visibility refresh.
  */
 
 const NAV_ITEMS = [
@@ -21,6 +23,38 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/chat");
+        if (!res.ok) return;
+        const data = await res.json();
+        const total = (data.threads ?? []).reduce(
+          (sum: number, t: { unreadCount: number }) => sum + (t.unreadCount || 0),
+          0,
+        );
+        setUnreadCount(total);
+      } catch {
+        // 무시
+      }
+    }
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30_000);
+
+    // 탭 포커스 시 즉시 갱신
+    function onVisible() {
+      if (document.visibilityState === "visible") fetchUnread();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   return (
     <>
@@ -46,6 +80,7 @@ export function Navbar() {
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
+            const isChat = item.href === "/chat";
 
             return (
               <Link
@@ -58,7 +93,14 @@ export function Navbar() {
                     : "text-muted-foreground hover:text-primary/70",
                 )}
               >
-                <Icon size={20} fill={isActive ? "hsl(340, 82%, 62%)" : "none"} />
+                <div className="relative">
+                  <Icon size={20} fill={isActive ? "hsl(340, 82%, 62%)" : "none"} />
+                  {isChat && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );
