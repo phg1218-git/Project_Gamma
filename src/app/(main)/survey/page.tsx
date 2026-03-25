@@ -364,21 +364,34 @@ function QuestionCard({
 
       {question.type === "slider" && question.slider && (
         <div>
-          <input
-            type="range"
-            min={question.slider.min}
-            max={question.slider.max}
-            step={question.slider.step}
-            value={(value as number) || question.slider.min}
-            onChange={(e) => onChange(Number(e.target.value))}
-            className="w-full accent-primary"
-          />
-          <div className="flex justify-between mt-1">
+          {/* Label row */}
+          <div className="flex justify-between mb-3">
             <span className="text-xs text-muted-foreground">{question.slider.minLabel}</span>
-            <span className="text-sm font-medium text-primary">
-              {(value as number) || question.slider.min}
-            </span>
             <span className="text-xs text-muted-foreground">{question.slider.maxLabel}</span>
+          </div>
+
+          {/* Score buttons */}
+          <div className="flex gap-1 mb-2 py-2 overflow-x-auto scrollbar-hide">
+            {Array.from(
+              { length: Math.floor((question.slider.max - question.slider.min) / question.slider.step) + 1 },
+              (_, i) => question.slider!.min + i * question.slider!.step
+            ).map((score) => {
+              const isSelected = (value as number) === score || (value === undefined && score === question.slider!.min);
+              return (
+                <button
+                  key={score}
+                  type="button"
+                  onClick={() => onChange(score)}
+                  className={`flex-1 min-w-[2rem] aspect-square rounded-full text-xs font-semibold transition-all ${
+                    isSelected
+                      ? "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
+                      : "bg-pink-50 text-muted-foreground hover:bg-pink-100 hover:scale-105"
+                  }`}
+                >
+                  {score}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

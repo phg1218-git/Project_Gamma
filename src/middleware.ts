@@ -1,6 +1,7 @@
 // middleware.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
 /**
  * IMPORTANT:
@@ -15,10 +16,58 @@ import { NextResponse } from "next/server";
  * - Actual authorization is enforced again in server routes/pages as needed.
  */
 
-export function middleware(req: NextRequest) {
+const ADMIN_COOKIE_NAME = "admin-token";
+
+function getAdminSecret() {
+  const secret = process.env.ADMIN_JWT_SECRET;
+  if (!secret) return null;
+  return new TextEncoder().encode(secret);
+}
+
+async function isAdminAuthenticated(req: NextRequest): Promise<boolean> {
+  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (!token) return false;
+
+  const secret = getAdminSecret();
+  if (!secret) return false;
+
+  try {
+    await jwtVerify(token, secret);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Public routes
+  // ── Admin routes ──────────────────────────────────────────
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    // Admin login page & login API are public
+    if (
+      pathname === "/admin/login" ||
+      pathname === "/api/admin/login"
+    ) {
+      return NextResponse.next();
+    }
+
+    const authenticated = await isAdminAuthenticated(req);
+    if (!authenticated) {
+      // API routes return 401 JSON
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      // Page routes redirect to admin login
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+
+    return NextResponse.next();
+  }
+
+  // ── Public routes ─────────────────────────────────────────
   if (
     pathname === "/" ||
     pathname.startsWith("/login") ||
@@ -43,12 +92,6 @@ export function middleware(req: NextRequest) {
   /**
    * We only check if a session cookie exists.
    * Cookie names can differ by Auth.js/NextAuth version and environment.
-   * Common ones:
-   * - next-auth.session-token (dev)
-   * - __Secure-next-auth.session-token (prod)
-   *
-   * If your project uses Auth.js v5, cookie names might be different,
-   * but the key idea is: DO NOT query DB here.
    */
   const sessionToken =
     req.cookies.get("next-auth.session-token")?.value ||
@@ -70,5 +113,14 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/profile/:path*", "/survey/:path*", "/match/:path*", "/matches/:path*", "/chat/:path*", "/settings/:path*"],
+  matcher: [
+    "/profile/:path*",
+    "/survey/:path*",
+    "/match/:path*",
+    "/matches/:path*",
+    "/chat/:path*",
+    "/settings/:path*",
+    "/admin/:path*",
+    "/api/admin/:path*",
+  ],
 };

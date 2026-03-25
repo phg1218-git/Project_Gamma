@@ -53,7 +53,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "dating_values",
     label: "인생에서 연애의 중요도는?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "낮음", maxLabel: "매우 높음" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "낮음", maxLabel: "매우 높음" },
     perspective: "self",
   },
   {
@@ -71,7 +71,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "dating_values",
     label: "스킨십에 대한 적극성은?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "소극적", maxLabel: "적극적" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "소극적", maxLabel: "적극적" },
     perspective: "self",
   },
   {
@@ -80,7 +80,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "dating_values",
     label: "질투의 정도는?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "전혀 안 함", maxLabel: "많이 함" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "전혀 안 함", maxLabel: "많이 함" },
     perspective: "self",
   },
   {
@@ -136,7 +136,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "lifestyle",
     label: "소비 성향은? (절약 vs 투자)",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "절약형", maxLabel: "투자형" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "절약형", maxLabel: "투자형" },
     perspective: "self",
   },
   {
@@ -145,7 +145,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "lifestyle",
     label: "정리정돈/청결 수준은?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "자유로움", maxLabel: "깔끔함" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "자유로움", maxLabel: "깔끔함" },
     perspective: "self",
   },
   {
@@ -183,7 +183,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "communication",
     label: "감정 표현의 정도는?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "표현 안 함", maxLabel: "적극 표현" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "표현 안 함", maxLabel: "적극 표현" },
     perspective: "self",
   },
   {
@@ -192,7 +192,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "communication",
     label: "대화에서의 역할은? (듣기 vs 말하기)",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "듣기형", maxLabel: "말하기형" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "듣기형", maxLabel: "말하기형" },
     perspective: "self",
   },
 
@@ -221,7 +221,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "future_plans",
     label: "커리어 우선순위는?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "여유로운 삶", maxLabel: "커리어 우선" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "여유로운 삶", maxLabel: "커리어 우선" },
     perspective: "self",
   },
   {
@@ -241,7 +241,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "personality_deep",
     label: "내향적 vs 외향적?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "내향적", maxLabel: "외향적" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "내향적", maxLabel: "외향적" },
     perspective: "self",
   },
   {
@@ -250,7 +250,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "personality_deep",
     label: "즉흥적 vs 계획적?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "즉흥적", maxLabel: "계획적" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "즉흥적", maxLabel: "계획적" },
     perspective: "self",
   },
   {
@@ -259,7 +259,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     category: "personality_deep",
     label: "도전 성향은?",
     required: true,
-    slider: { min: 1, max: 10, step: 1, minLabel: "안정 추구", maxLabel: "도전 추구" },
+    slider: { min: 0, max: 10, step: 1, minLabel: "안정 추구", maxLabel: "도전 추구" },
     perspective: "self",
   },
   {
