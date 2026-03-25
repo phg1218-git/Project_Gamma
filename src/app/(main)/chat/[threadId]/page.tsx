@@ -34,6 +34,7 @@ export default function ChatThreadPage() {
   const threadId = params.threadId as string;
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [partnerNickname, setPartnerNickname] = useState("");
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,6 +75,22 @@ export default function ChatThreadPage() {
 
         if (typeof data.isActive === "boolean") {
           setIsActive(data.isActive);
+        }
+        if (data.partnerNickname) {
+          setPartnerNickname(data.partnerNickname);
+        }
+        // 읽음 처리된 내 메시지 readAt 갱신
+        if (data.readReceipts?.length > 0) {
+          const receiptMap = new Map<string, string>(
+            (data.readReceipts as { id: string; readAt: string }[]).map((r) => [r.id, r.readAt]),
+          );
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.isMine && !m.readAt && receiptMap.has(m.id)
+                ? { ...m, readAt: receiptMap.get(m.id)! }
+                : m,
+            ),
+          );
         }
         if (newMessages.length > 0) {
           if (isInitial) {
@@ -215,11 +232,13 @@ export default function ChatThreadPage() {
           </button>
         ) : (
           <div className="w-9 h-9 rounded-full bg-gradient-pink flex items-center justify-center flex-shrink-0">
-            <Heart size={14} className="text-white" />
+            <span className="text-sm font-bold text-white">
+              {partnerNickname.charAt(0) || "?"}
+            </span>
           </div>
         )}
 
-        <h2 className="font-semibold flex-1">채팅</h2>
+        <h2 className="font-semibold flex-1">{partnerNickname || "채팅"}</h2>
 
         {/* Photo reveal button (활성 채팅만) */}
         {isActive && (
@@ -320,6 +339,11 @@ export default function ChatThreadPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* 안읽음 표시 — 내 메시지 버블 왼쪽에 작게 표시 */}
+            {msg.isMine && !msg.readAt && (
+              <span className="text-[10px] text-pink-400 self-end mb-1 shrink-0">1</span>
             )}
 
             <div className={`max-w-[75%] ${msg.isMine ? "chat-bubble-mine" : "chat-bubble-theirs"}`}>

@@ -89,10 +89,13 @@ export async function findMatches(
     },
   });
 
-  // 3. Apply hard filters
+  // 3. Apply hard filters (양방향: 내가 상대 조건도 통과 + 상대가 내 조건도 통과)
   const filteredCandidates = candidates.filter((candidate) => {
     if (!candidate.profile) return false;
-    return passesHardFilters(user.profile!, candidate.profile);
+    return (
+      passesHardFilters(user.profile!, candidate.profile) &&
+      passesHardFilters(candidate.profile, user.profile!)
+    );
   });
 
   // 4. Score each candidate

@@ -36,12 +36,21 @@ export async function GET(request: Request, context: RouteContext) {
         id: threadId,
         OR: [{ userAId: userId }, { userBId: userId }],
       },
-      select: { id: true, isActive: true },
+      select: {
+        id: true,
+        isActive: true,
+        userAId: true,
+        userA: { select: { profile: { select: { nickname: true } } } },
+        userB: { select: { profile: { select: { nickname: true } } } },
+      },
     });
 
     if (!thread) {
       return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
+
+    const partner = thread.userAId === userId ? thread.userB : thread.userA;
+    const partnerNickname = partner?.profile?.nickname ?? "상대방";
 
     // Parse and validate query params
     const url = new URL(request.url);
@@ -95,7 +104,27 @@ export async function GET(request: Request, context: RouteContext) {
       isMine: msg.senderId === userId,
     }));
 
-    return NextResponse.json({ messages: formattedMessages, isActive: thread.isActive });
+    // 내가 보낸 메시지 중 상대방이 읽은 것들의 readAt 전달 (읽음 표시 갱신용)
+    const readReceipts = await prisma.message.findMany({
+      where: {
+        threadId,
+        senderId: userId,
+        readAt: { not: null },
+      },
+      select: { id: true, readAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    return NextResponse.json({
+      messages: formattedMessages,
+      isActive: thread.isActive,
+      partnerNickname,
+      readReceipts: readReceipts.map((r) => ({
+        id: r.id,
+        readAt: r.readAt!.toISOString(),
+      })),
+    });
   } catch (error) {
     console.error("[Messages GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
