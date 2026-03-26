@@ -9,8 +9,8 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
-export async function signAdminToken(): Promise<string> {
-  return new SignJWT({ role: "admin" })
+export async function signAdminToken(adminId: string): Promise<string> {
+  return new SignJWT({ role: "admin", adminId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(ADMIN_TOKEN_EXPIRY)
@@ -19,10 +19,10 @@ export async function signAdminToken(): Promise<string> {
 
 export async function verifyAdminToken(
   token: string,
-): Promise<{ valid: true } | { valid: false }> {
+): Promise<{ valid: true; adminId: string } | { valid: false }> {
   try {
-    await jwtVerify(token, getSecret());
-    return { valid: true };
+    const { payload } = await jwtVerify(token, getSecret());
+    return { valid: true, adminId: payload.adminId as string };
   } catch {
     return { valid: false };
   }

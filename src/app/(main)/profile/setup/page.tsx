@@ -853,7 +853,7 @@ export default function ProfileSetupPage() {
             step={5}
             value={form.minMatchScore}
             onChange={(e) => setForm((p) => ({ ...p, minMatchScore: Number(e.target.value) }))}
-            className="w-full accent-primary"
+            className="w-full accent-primary outline-none border-0 focus:outline-none"
           />
           <div className="flex justify-between mt-1">
             <span className="text-xs text-muted-foreground">0점 (제한 없음)</span>

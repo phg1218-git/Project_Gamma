@@ -164,7 +164,7 @@ export default function AdminUserEditPage() {
                 max={100}
                 value={minMatchScore}
                 onChange={(e) => setMinMatchScore(Number(e.target.value))}
-                className="w-full"
+                className="w-full outline-none border-0 focus:outline-none"
               />
             </div>
           </fieldset>
