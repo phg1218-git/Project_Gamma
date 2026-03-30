@@ -44,10 +44,12 @@ export async function middleware(req: NextRequest) {
 
   // ── Admin routes ──────────────────────────────────────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    // Admin login page & login API are public
+    // Admin login page & auth callbacks are public
     if (
       pathname === "/admin/login" ||
-      pathname === "/api/admin/login"
+      pathname === "/api/admin/login" ||
+      pathname === "/api/admin/google-callback" ||
+      pathname === "/api/admin/is-admin"
     ) {
       return NextResponse.next();
     }

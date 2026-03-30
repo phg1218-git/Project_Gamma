@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Heart, User, ClipboardList, Users, MessageCircle } from "lucide-react";
+import { Heart, User, ClipboardList, Users, MessageCircle, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,7 +23,16 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/is-admin")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(d.isAdmin ?? false))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchUnread() {
@@ -65,12 +74,23 @@ export function Navbar() {
             <Heart size={24} fill="hsl(340, 82%, 62%)" strokeWidth={0} />
             <span className="text-lg font-bold text-gradient-pink">이어줌</span>
           </Link>
-          <Link
-            href="/settings"
-            className="text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Users size={20} />
-          </Link>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <button
+                onClick={() => router.push("/api/admin/google-callback")}
+                className="flex items-center gap-1 rounded-md bg-pink-50 px-2.5 py-1 text-xs font-medium text-pink-600 hover:bg-pink-100 transition-colors"
+              >
+                <ShieldCheck size={14} />
+                관리자
+              </button>
+            )}
+            <Link
+              href="/settings"
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Users size={20} />
+            </Link>
+          </div>
         </div>
       </header>
 
