@@ -52,6 +52,9 @@ model User {
   emailVerified   DateTime?
   image           String?
   profileComplete Boolean         @default(false)
+  termsAgreedAt   DateTime?       // 서비스 이용약관 동의 시각
+  privacyAgreedAt DateTime?       // 개인정보 처리방침 동의 시각
+  deletedAt       DateTime?       // 탈퇴 처리 시각 (익명화 후 기록)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   accounts        Account[]

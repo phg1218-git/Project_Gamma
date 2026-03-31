@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Google from "next-auth/providers/google";
 import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import type { User } from "next-auth";
 
 /**
  * Auth.js (NextAuth v5) Configuration
@@ -103,20 +104,18 @@ export const authConfig: NextAuthConfig = {
 
   callbacks: {
     /**
-     * Session callback: attach user ID and profileComplete flag to session.
-     * This lets client components know if profile setup is needed.
+     * Session callback: attach user ID and termsAgreedAt to session.
      */
     session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;
-        // TypeScript: extend session type in types/next-auth.d.ts
+        session.user.termsAgreedAt = (user as User & { termsAgreedAt?: Date | null }).termsAgreedAt ?? null;
       }
       return session;
     },
 
     /**
-     * Redirect callback: force profile completion on first login.
-     * After sign-in, check if the user has completed their profile.
+     * Redirect callback: 약관 미동의 유저는 /signup/terms로 이동.
      */
     async redirect({ url, baseUrl }) {
       // Allow relative URLs

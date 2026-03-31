@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Heart, LogOut, PauseCircle, PlayCircle } from "lucide-react";
+import { Heart, LogOut, PauseCircle, PlayCircle, UserX } from "lucide-react";
 
 /**
  * Settings Page
@@ -15,6 +15,10 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const [stopMatching, setStopMatching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [withdrawEmail, setWithdrawEmail] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
 
   // Hydrate stopMatching from server on mount
   useEffect(() => {
@@ -31,6 +35,27 @@ export default function SettingsPage() {
     }
     loadProfile();
   }, []);
+
+  async function handleWithdraw() {
+    if (withdrawEmail !== session?.user?.email) {
+      setWithdrawError("이메일 주소가 일치하지 않습니다.");
+      return;
+    }
+    setWithdrawing(true);
+    setWithdrawError("");
+    try {
+      const res = await fetch("/api/user", { method: "DELETE" });
+      if (!res.ok) {
+        setWithdrawError("탈퇴 처리 중 오류가 발생했습니다.");
+        return;
+      }
+      await signOut({ callbackUrl: "/?withdrawn=1" });
+    } catch {
+      setWithdrawError("서버와 통신할 수 없습니다.");
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   async function toggleStopMatching() {
     setSaving(true);
@@ -109,6 +134,63 @@ export default function SettingsPage() {
         <LogOut size={20} className="text-destructive" />
         <span className="text-sm font-medium text-destructive">로그아웃</span>
       </button>
+
+      {/* Withdraw */}
+      {!showWithdraw ? (
+        <button
+          onClick={() => setShowWithdraw(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-slate-600 transition-colors text-sm"
+        >
+          <UserX size={16} />
+          회원 탈퇴
+        </button>
+      ) : (
+        <div className="card-romantic p-4 space-y-3 border border-red-100">
+          <div className="flex items-center gap-2">
+            <UserX size={18} className="text-destructive" />
+            <p className="text-sm font-semibold text-destructive">회원 탈퇴</p>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            탈퇴 시 프로필 및 개인정보는 즉시 삭제됩니다.
+            매칭 및 채팅 기록은 상대방 보호를 위해 익명으로 유지됩니다.
+          </p>
+          <p className="text-xs text-slate-600">
+            가입한 이메일 주소를 입력하면 탈퇴가 진행됩니다.
+          </p>
+          <input
+            type="email"
+            value={withdrawEmail}
+            onChange={(e) => {
+              setWithdrawEmail(e.target.value);
+              setWithdrawError("");
+            }}
+            placeholder={session?.user?.email ?? "이메일 주소"}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm placeholder:text-slate-300 focus:border-red-300 focus:outline-none focus:ring-1 focus:ring-red-200"
+          />
+          {withdrawError && (
+            <p className="text-xs text-destructive">{withdrawError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowWithdraw(false);
+                setWithdrawEmail("");
+                setWithdrawError("");
+              }}
+              className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawing || withdrawEmail !== session?.user?.email}
+              className="flex-1 py-2 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {withdrawing ? "처리 중..." : "탈퇴 확인"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

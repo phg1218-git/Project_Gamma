@@ -23,15 +23,18 @@ export default function LoginPage() {
           strokeWidth={0}
         />
         <h1 className="text-2xl font-bold text-gradient-pink mb-1">이어줌</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          소셜 계정으로 간편 로그인
+        <p className="text-sm text-muted-foreground mb-2">
+          소셜 계정으로 로그인 / 회원가입
+        </p>
+        <p className="text-xs text-muted-foreground mb-8">
+          처음 이용하시면 약관 동의 후 가입이 완료됩니다
         </p>
 
         {/* Social Login Buttons */}
         <div className="space-y-3">
           {/* Google */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/profile" })}
+            onClick={() => signIn("google", { callbackUrl: "/api/auth/post-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -57,7 +60,7 @@ export default function LoginPage() {
 
           {/* Naver */}
           <button
-            onClick={() => signIn("naver", { callbackUrl: "/profile" })}
+            onClick={() => signIn("naver", { callbackUrl: "/api/auth/post-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium transition-colors"
             style={{ backgroundColor: "#03C75A" }}
           >
@@ -69,7 +72,7 @@ export default function LoginPage() {
 
           {/* Kakao */}
           <button
-            onClick={() => signIn("kakao", { callbackUrl: "/profile" })}
+            onClick={() => signIn("kakao", { callbackUrl: "/api/auth/post-login" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
             style={{ backgroundColor: "#FEE500", color: "#191919" }}
           >
@@ -82,7 +85,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-xs text-muted-foreground">
-          로그인하면 이어줌의{" "}
+          회원가입 시{" "}
           <Link href="/terms" className="underline hover:text-primary transition-colors">
             서비스 이용약관
           </Link>
@@ -90,7 +93,7 @@ export default function LoginPage() {
           <Link href="/privacy" className="underline hover:text-primary transition-colors">
             개인정보처리방침
           </Link>
-          에 동의하게 됩니다.
+          에 동의가 필요합니다.
         </p>
       </div>
     </div>

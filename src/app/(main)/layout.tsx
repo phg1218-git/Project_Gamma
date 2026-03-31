@@ -30,9 +30,9 @@ export default async function MainLayout({
     select: { profileComplete: true },
   });
 
-  // Redirect to profile setup if not complete (skip if already there)
+  // Redirect to profile setup if not complete (skip if already on setup page)
   const pathname = (await headers()).get("x-pathname") ?? "";
-  if (!user?.profileComplete && pathname !== "/profile/setup") {
+  if (!user?.profileComplete && !pathname.startsWith("/profile/setup") && !pathname.startsWith("/settings")) {
     redirect("/profile/setup");
   }
 
