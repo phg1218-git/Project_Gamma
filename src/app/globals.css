@@ -175,4 +175,16 @@
   .safe-area-right {
     padding-right: env(safe-area-inset-right);
   }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  }
+
+  /* ── Mobile keyboard handling ── */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS specific styles */
+    .ios-keyboard-fix {
+      height: -webkit-fill-available;
+    }
+  }
 }

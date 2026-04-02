@@ -66,11 +66,21 @@ export default function ChatThreadPage() {
   const [revealLoading, setRevealLoading] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  // 입력창 포커스 시 스크롤 조정 (모바일 키보드 대응)
+  const handleInputFocus = useCallback(() => {
+    // 약간의 딜레이를 두고 스크롤 (키보드 애니메이션 대기)
+    setTimeout(() => {
+      scrollToBottom();
+    }, 300);
+  }, [scrollToBottom]);
 
   // messages가 변경될 때마다 자동으로 맨 아래로 스크롤
   useEffect(() => {
@@ -224,9 +234,9 @@ export default function ChatThreadPage() {
   const bothRevealed = photoReveal.myReveal && photoReveal.partnerReveal;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-7.5rem)]">
+    <div className="flex flex-col fixed inset-0 top-14 bottom-0">
       {/* Chat Header */}
-      <div className="flex items-center gap-2 sm:gap-3 pb-3 border-b border-pink-100">
+      <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3 pb-3 px-4 border-b border-pink-100 bg-white">
         <button
           onClick={() => router.push("/chat")}
           className="p-2 rounded-full hover:bg-pink-50 active:bg-pink-100 transition-colors"
@@ -321,7 +331,7 @@ export default function ChatThreadPage() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto py-4 px-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-center py-8">
             <Heart className="mx-auto mb-2 text-pink-200" size={32} />
@@ -377,12 +387,14 @@ export default function ChatThreadPage() {
 
       {/* Message Input */}
       {isActive ? (
-        <form onSubmit={handleSend} className="pt-3 border-t border-pink-100">
-          <div className="flex gap-2">
+        <form onSubmit={handleSend} className="flex-shrink-0 pt-3 px-4 pb-safe border-t border-pink-100 bg-white">
+          <div className="flex gap-2 pb-2">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={handleInputFocus}
               placeholder="메시지를 입력하세요..."
               maxLength={1000}
               className="flex-1 px-4 py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm sm:text-base"
@@ -397,7 +409,7 @@ export default function ChatThreadPage() {
           </div>
         </form>
       ) : (
-        <div className="pt-3 border-t border-gray-100 text-center">
+        <div className="flex-shrink-0 pt-3 px-4 pb-safe border-t border-gray-100 text-center bg-white">
           <p className="text-xs sm:text-sm text-muted-foreground py-2">채팅이 종료되어 메시지를 보낼 수 없습니다.</p>
         </div>
       )}
