@@ -33,6 +33,23 @@ export default function ChatThreadPage() {
   const router = useRouter();
   const threadId = params.threadId as string;
 
+  // 하단 네비게이션 숨기기 위한 스타일 오버라이드
+  useEffect(() => {
+    // 부모 요소의 padding-bottom 제거
+    const mainElement = document.querySelector("main");
+    const rootDiv = mainElement?.parentElement;
+    if (rootDiv) {
+      rootDiv.style.paddingBottom = "0";
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 시 원래대로 복구
+      if (rootDiv) {
+        rootDiv.style.paddingBottom = "";
+      }
+    };
+  }, []);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [partnerNickname, setPartnerNickname] = useState("");
   const [input, setInput] = useState("");
@@ -207,7 +224,7 @@ export default function ChatThreadPage() {
   const bothRevealed = photoReveal.myReveal && photoReveal.partnerReveal;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-11.5rem)]">
+    <div className="flex flex-col h-[calc(100dvh-7.5rem)]">
       {/* Chat Header */}
       <div className="flex items-center gap-2 sm:gap-3 pb-3 border-b border-pink-100">
         <button

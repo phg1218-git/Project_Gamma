@@ -28,6 +28,9 @@ export function Navbar() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // 채팅 상세 페이지에서는 하단 네비게이션 숨기기
+  const isInChatThread = pathname.startsWith("/chat/") && pathname !== "/chat";
+
   useEffect(() => {
     fetch("/api/admin/is-admin")
       .then((r) => r.json())
@@ -76,11 +79,19 @@ export function Navbar() {
         fetchNotifications();
       }
     }
+
+    // 알림 읽음 처리 시 즉시 갱신
+    function onNotificationRead() {
+      fetchNotifications();
+    }
+
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("notificationRead", onNotificationRead);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("notificationRead", onNotificationRead);
     };
   }, []);
 
@@ -124,39 +135,41 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* Bottom nav (mobile-first) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-pink-100 safe-area-bottom">
-        <div className="container mx-auto max-w-lg flex items-center justify-around h-16 px-2">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            const Icon = item.icon;
-            const isChat = item.href === "/chat";
+      {/* Bottom nav (mobile-first) - 채팅 상세 페이지에서는 숨김 */}
+      {!isInChatThread && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-pink-100 safe-area-bottom">
+          <div className="container mx-auto max-w-lg flex items-center justify-around h-16 px-2">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+              const isChat = item.href === "/chat";
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-primary/70",
-                )}
-              >
-                <div className="relative">
-                  <Icon size={20} fill={isActive ? "hsl(340, 82%, 62%)" : "none"} />
-                  {isChat && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors",
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-primary/70",
                   )}
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+                >
+                  <div className="relative">
+                    <Icon size={20} fill={isActive ? "hsl(340, 82%, 62%)" : "none"} />
+                    {isChat && unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </>
   );
 }

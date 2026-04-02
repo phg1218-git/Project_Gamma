@@ -63,6 +63,8 @@ export default function NotificationsPage() {
             n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
           )
         );
+        // Navbar 배지 업데이트 트리거
+        window.dispatchEvent(new CustomEvent("notificationRead"));
       }
     } catch (error) {
       console.error("Failed to mark as read:", error);
@@ -81,6 +83,8 @@ export default function NotificationsPage() {
         setNotifications((prev) =>
           prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
         );
+        // Navbar 배지 업데이트 트리거
+        window.dispatchEvent(new CustomEvent("notificationRead"));
       }
     } catch (error) {
       console.error("Failed to mark all as read:", error);
