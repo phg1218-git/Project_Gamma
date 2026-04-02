@@ -466,29 +466,35 @@ function QuestionCard({
               <span className="text-xs text-muted-foreground">{question.slider.maxLabel}</span>
             </div>
 
-            {/* Score buttons — 좌우 스크롤 */}
-            <div className="flex gap-1.5 mb-2 py-2 overflow-x-auto scrollbar-hide">
-              {Array.from(
-                { length: Math.floor((question.slider.max - question.slider.min) / question.slider.step) + 1 },
-                (_, i) => question.slider!.min + i * question.slider!.step
-              ).map((score) => {
-                const isSelected = (value as number) === score || (value === undefined && score === question.slider!.min);
-                return (
-                  <button
-                    key={score}
-                    type="button"
-                    onClick={() => onChange(score)}
-                    className={`flex-shrink-0 w-9 h-9 rounded-full text-xs font-semibold transition-all ${
-                      isSelected
-                        ? "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
-                        : "bg-pink-50 text-muted-foreground hover:bg-pink-100 hover:scale-105"
-                    }`}
-                  >
-                    {score}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Score buttons — 균등 배치 */}
+            {(() => {
+              const count = Math.floor((question.slider.max - question.slider.min) / question.slider.step) + 1;
+              const scores = Array.from({ length: count }, (_, i) => question.slider!.min + i * question.slider!.step);
+              return (
+                <div
+                  className="grid mb-2 py-2 gap-1"
+                  style={{ gridTemplateColumns: `repeat(${count}, 1fr)` }}
+                >
+                  {scores.map((score) => {
+                    const isSelected = (value as number) === score || (value === undefined && score === question.slider!.min);
+                    return (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => onChange(score)}
+                        className={`aspect-square w-full rounded-full text-xs font-semibold transition-all ${
+                          isSelected
+                            ? "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
+                            : "bg-pink-50 text-muted-foreground hover:bg-pink-100 hover:scale-105"
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )
       )}
