@@ -1,35 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Heart, Bell, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Heart, Bell, Check, MessageCircle } from "lucide-react";
 
 interface Notification {
   id: string;
-  type: "INFO" | "WARNING" | "IMPORTANT" | "EVENT";
+  type: "INFO" | "WARNING" | "IMPORTANT" | "EVENT" | "SYSTEM";
   title: string;
   content: string;
   isRead: boolean;
   createdAt: string;
   readAt: string | null;
+  actionType: string | null;
+  actionPayload: { recommendationId?: string } | null;
 }
 
-const TYPE_LABELS = {
+const TYPE_LABELS: Record<Notification["type"], string> = {
   INFO: "일반",
   WARNING: "주의",
   IMPORTANT: "중요",
   EVENT: "이벤트",
+  SYSTEM: "시스템",
 };
 
-const TYPE_COLORS = {
+const TYPE_COLORS: Record<Notification["type"], string> = {
   INFO: "bg-blue-50 text-blue-700",
   WARNING: "bg-yellow-50 text-yellow-700",
   IMPORTANT: "bg-red-50 text-red-700",
   EVENT: "bg-purple-50 text-purple-700",
+  SYSTEM: "bg-pink-50 text-pink-700",
 };
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -38,10 +45,18 @@ export default function NotificationsPage() {
   async function fetchNotifications() {
     try {
       const res = await fetch("/api/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-      }
+      if (!res.ok) return;
+      const data = await res.json();
+      const notifs: Notification[] = data.notifications || [];
+      setNotifications(notifs);
+
+      // navbar 배지를 현재 미읽음 수로 동기화 (읽음 처리는 하지 않음)
+      const unreadCount = notifs.filter((n) => !n.isRead).length;
+      window.dispatchEvent(
+        new CustomEvent("notificationRead", {
+          detail: { unreadCount },
+        })
+      );
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
@@ -50,44 +65,88 @@ export default function NotificationsPage() {
   }
 
   async function handleMarkAsRead(id: string) {
+    // 낙관적 업데이트
+    const updated = notifications.map((n) =>
+      n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
+    );
+    setNotifications(updated);
+    const newCount = updated.filter((n) => !n.isRead).length;
+    window.dispatchEvent(
+      new CustomEvent("notificationRead", { detail: { unreadCount: newCount } })
+    );
+
     try {
-      const res = await fetch("/api/notifications", {
+      await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
-          )
-        );
-        // Navbar 배지 업데이트 트리거
-        window.dispatchEvent(new CustomEvent("notificationRead"));
-      }
     } catch (error) {
       console.error("Failed to mark as read:", error);
     }
   }
 
   async function handleMarkAllAsRead() {
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
+    );
+    window.dispatchEvent(
+      new CustomEvent("notificationRead", { detail: { unreadCount: 0 } })
+    );
+
     try {
-      const res = await fetch("/api/notifications", {
+      await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAllAsRead: true }),
       });
-
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
-        );
-        // Navbar 배지 업데이트 트리거
-        window.dispatchEvent(new CustomEvent("notificationRead"));
-      }
     } catch (error) {
       console.error("Failed to mark all as read:", error);
+    }
+  }
+
+  async function handleMatchRequest(
+    notif: Notification,
+    accept: boolean
+  ) {
+    const recommendationId = notif.actionPayload?.recommendationId;
+    if (!recommendationId) return;
+
+    setRespondingId(notif.id);
+    try {
+      const res = await fetch("/api/matches/recommendation/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recommendationId, accept }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Respond error:", err);
+        return;
+      }
+
+      const data = await res.json();
+
+      // 알림 읽음 처리 및 액션 제거 (이미 처리됨)
+      const updated = notifications.map((n) =>
+        n.id === notif.id
+          ? { ...n, isRead: true, readAt: new Date().toISOString(), actionType: null }
+          : n
+      );
+      setNotifications(updated);
+      const newCount = updated.filter((n) => !n.isRead).length;
+      window.dispatchEvent(
+        new CustomEvent("notificationRead", { detail: { unreadCount: newCount } })
+      );
+
+      if (accept && data.chatThreadId) {
+        router.push(`/chat/${data.chatThreadId}`);
+      }
+    } catch (error) {
+      console.error("Failed to respond to match request:", error);
+    } finally {
+      setRespondingId(null);
     }
   }
 
@@ -130,59 +189,97 @@ export default function NotificationsPage() {
             <p className="text-sm text-muted-foreground">받은 알림이 없습니다.</p>
           </div>
         ) : (
-          notifications.map((notif) => (
-            <div
-              key={notif.id}
-              className={`card-romantic p-4 transition-all ${
-                notif.isRead ? "opacity-60" : ""
-              }`}
-              onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
-            >
-              <div className="flex items-start gap-3">
-                {/* Unread indicator */}
-                {!notif.isRead && (
-                  <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
-                )}
+          notifications.map((notif) => {
+            const isMatchRequest =
+              notif.actionType === "MATCH_REQUEST" && !notif.isRead;
+            const isResponding = respondingId === notif.id;
 
-                <div className="flex-1 min-w-0">
-                  {/* Type badge */}
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-2 ${
-                      TYPE_COLORS[notif.type]
-                    }`}
-                  >
-                    {TYPE_LABELS[notif.type]}
-                  </span>
+            return (
+              <div
+                key={notif.id}
+                className={`card-romantic p-4 transition-all ${
+                  notif.isRead && !isMatchRequest ? "opacity-60" : ""
+                }`}
+                onClick={() => {
+                  // MATCH_REQUEST 알림은 버튼으로만 처리, 일반 클릭 무시
+                  if (!notif.isRead && !isMatchRequest) {
+                    handleMarkAsRead(notif.id);
+                  }
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Unread indicator */}
+                  {!notif.isRead && (
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                  )}
 
-                  {/* Title */}
-                  <h3 className="font-semibold text-foreground mb-1">
-                    {notif.title}
-                  </h3>
+                  <div className="flex-1 min-w-0">
+                    {/* Type badge */}
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-2 ${
+                        TYPE_COLORS[notif.type]
+                      }`}
+                    >
+                      {TYPE_LABELS[notif.type]}
+                    </span>
 
-                  {/* Content */}
-                  <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
-                    {notif.content}
-                  </p>
+                    {/* Title */}
+                    <h3 className="font-semibold text-foreground mb-1">
+                      {notif.title}
+                    </h3>
 
-                  {/* Timestamp */}
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(notif.createdAt).toLocaleString("ko-KR", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                    {/* Content */}
+                    <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
+                      {notif.content}
+                    </p>
+
+                    {/* Timestamp */}
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(notif.createdAt).toLocaleString("ko-KR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+
+                    {/* MATCH_REQUEST 액션 버튼 */}
+                    {isMatchRequest && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          disabled={isResponding}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMatchRequest(notif, false);
+                          }}
+                          className="flex-1 py-2 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 active:bg-pink-100 transition-colors disabled:opacity-50"
+                        >
+                          거절
+                        </button>
+                        <button
+                          disabled={isResponding}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMatchRequest(notif, true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-pink text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all disabled:opacity-50"
+                        >
+                          <MessageCircle size={14} />
+                          {isResponding ? "처리 중..." : "수락"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Read status */}
+                  {notif.isRead && !isMatchRequest && (
+                    <Check size={16} className="text-green-500 flex-shrink-0 mt-1" />
+                  )}
                 </div>
-
-                {/* Read status */}
-                {notif.isRead && (
-                  <Check size={16} className="text-green-500 flex-shrink-0 mt-1" />
-                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -103,8 +103,10 @@ export default function SurveyPage() {
           typeof existingAnswers === "object" &&
           !Array.isArray(existingAnswers)
         ) {
-          // 서버 데이터를 기준으로, 로컬 드래프트가 있으면 드래프트 우선 병합
-          setAnswers((prev) => ({ ...existingAnswers, ...prev }));
+          // 서버 데이터가 있으면 항상 서버 데이터를 우선 적용
+          // 로컬 드래프트는 서버 제출 이후 stale할 수 있으므로 제거
+          setAnswers(existingAnswers);
+          try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
         }
       } catch {
         // 프리필 실패는 무시
@@ -230,7 +232,7 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in pb-24">
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
@@ -278,54 +280,141 @@ export default function SurveyPage() {
         ))}
       </div>
 
-      {/* Navigation */}
-      <div className="flex gap-3 mt-6">
-        {currentStep > 0 && (
-          <button
-            onClick={() => setCurrentStep((s) => s - 1)}
-            className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
-          >
-            <ChevronLeft size={16} /> 이전
-          </button>
-        )}
-
-        {/* 임시저장 버튼 */}
-        <button
-          type="button"
-          onClick={() => saveDraft(true)}
-          className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
-        >
-          {saveIndicator ? (
-            <>
-              <CheckCircle size={15} className="text-primary" />
-              <span className="text-primary">저장됨</span>
-            </>
-          ) : (
-            <>
-              <Save size={15} />
-              임시저장
-            </>
+      {/* Navigation — 하단 네비바 위에 고정 */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 px-4 py-2">
+        <div className="container mx-auto max-w-lg flex gap-3">
+          {currentStep > 0 && (
+            <button
+              onClick={() => setCurrentStep((s) => s - 1)}
+              className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl bg-white border border-gray-200 shadow-sm text-sm font-medium text-muted-foreground hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft size={16} /> 이전
+            </button>
           )}
-        </button>
 
-        {currentStep < categories.length - 1 ? (
+          {/* 임시저장 버튼 */}
           <button
-            onClick={() => setCurrentStep((s) => s + 1)}
-            disabled={!canProceed()}
-            className="flex-1 btn-gradient flex items-center justify-center gap-1 disabled:opacity-50"
+            type="button"
+            onClick={() => saveDraft(true)}
+            className="flex items-center justify-center gap-1 py-3 px-4 rounded-xl bg-white border border-gray-200 shadow-sm text-sm font-medium text-muted-foreground hover:bg-gray-50 transition-colors"
           >
-            다음 <ChevronRight size={16} />
+            {saveIndicator ? (
+              <>
+                <CheckCircle size={15} className="text-primary" />
+                <span className="text-primary">저장됨</span>
+              </>
+            ) : (
+              <>
+                <Save size={15} />
+                임시저장
+              </>
+            )}
           </button>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !canProceed()}
-            className="flex-1 btn-gradient disabled:opacity-50"
-          >
-            {loading ? "제출 중..." : "설문 완료"}
-          </button>
-        )}
+
+          {currentStep < categories.length - 1 ? (
+            <button
+              onClick={() => setCurrentStep((s) => s + 1)}
+              disabled={!canProceed()}
+              className="flex-1 btn-gradient flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+            >
+              다음 <ChevronRight size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !canProceed()}
+              className="flex-1 btn-gradient shadow-sm disabled:opacity-50"
+            >
+              {loading ? "제출 중..." : "설문 완료"}
+            </button>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ── 나이차 슬라이더 피커 ───────────────────────────────────
+function AgeScrollPicker({
+  value,
+  onChange,
+}: {
+  value: number | undefined;
+  onChange: (val: number) => void;
+}) {
+  const current = value ?? 0;
+  const label = current === 0 ? "동갑만" : current === 15 ? "15살 이상" : `${current}살`;
+  const pct = (current / 15) * 100;
+
+  return (
+    <div className="px-1">
+      {/* 현재 값 표시 */}
+      <div className="text-center mb-3">
+        <span className="text-2xl font-bold text-primary">{label}</span>
+      </div>
+
+      {/* 슬라이더 트랙 */}
+      <div className="relative">
+        <input
+          type="range"
+          min={0}
+          max={15}
+          step={1}
+          value={current}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="age-slider w-full"
+        />
+        {/* 눈금 */}
+        <div className="flex justify-between mt-1.5 px-0.5">
+          {Array.from({ length: 16 }, (_, i) => (
+            <div key={i} className="flex flex-col items-center">
+              <div className={`w-px h-1.5 ${i === current ? "bg-primary" : "bg-pink-200"}`} />
+              {(i === 0 || i === 5 || i === 10 || i === 15) && (
+                <span className={`text-[10px] mt-0.5 ${i === current ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                  {i === 0 ? "0" : i === 15 ? "15" : i}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-between mt-1 text-[11px] text-muted-foreground">
+        <span>동갑만</span>
+        <span>15살 이상</span>
+      </div>
+
+      <style>{`
+        .age-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 6px;
+          border-radius: 9999px;
+          background: linear-gradient(to right, hsl(340, 82%, 62%) ${pct}%, #fce7f3 ${pct}%);
+          outline: none;
+          cursor: pointer;
+        }
+        .age-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: white;
+          border: 2.5px solid hsl(340, 82%, 62%);
+          box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3);
+          cursor: grab;
+        }
+        .age-slider::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: white;
+          border: 2.5px solid hsl(340, 82%, 62%);
+          box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3);
+          cursor: grab;
+        }
+      `}</style>
     </div>
   );
 }
@@ -363,37 +452,45 @@ function QuestionCard({
       <label className="block text-sm font-semibold mb-3">{question.label}</label>
 
       {question.type === "slider" && question.slider && (
-        <div>
-          {/* Label row */}
-          <div className="flex justify-between mb-3">
-            <span className="text-xs text-muted-foreground">{question.slider.minLabel}</span>
-            <span className="text-xs text-muted-foreground">{question.slider.maxLabel}</span>
-          </div>
+        (question.id === "pf_age_gap_older" || question.id === "pf_age_gap_younger") ? (
+          // 나이차 전용 드럼롤 피커
+          <AgeScrollPicker
+            value={value as number | undefined}
+            onChange={onChange}
+          />
+        ) : (
+          <div>
+            {/* Label row */}
+            <div className="flex justify-between mb-3">
+              <span className="text-xs text-muted-foreground">{question.slider.minLabel}</span>
+              <span className="text-xs text-muted-foreground">{question.slider.maxLabel}</span>
+            </div>
 
-          {/* Score buttons */}
-          <div className="flex gap-1 mb-2 py-2 overflow-x-auto scrollbar-hide">
-            {Array.from(
-              { length: Math.floor((question.slider.max - question.slider.min) / question.slider.step) + 1 },
-              (_, i) => question.slider!.min + i * question.slider!.step
-            ).map((score) => {
-              const isSelected = (value as number) === score || (value === undefined && score === question.slider!.min);
-              return (
-                <button
-                  key={score}
-                  type="button"
-                  onClick={() => onChange(score)}
-                  className={`flex-1 min-w-[2rem] aspect-square rounded-full text-xs font-semibold transition-all ${
-                    isSelected
-                      ? "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
-                      : "bg-pink-50 text-muted-foreground hover:bg-pink-100 hover:scale-105"
-                  }`}
-                >
-                  {score}
-                </button>
-              );
-            })}
+            {/* Score buttons — 좌우 스크롤 */}
+            <div className="flex gap-1.5 mb-2 py-2 overflow-x-auto scrollbar-hide">
+              {Array.from(
+                { length: Math.floor((question.slider.max - question.slider.min) / question.slider.step) + 1 },
+                (_, i) => question.slider!.min + i * question.slider!.step
+              ).map((score) => {
+                const isSelected = (value as number) === score || (value === undefined && score === question.slider!.min);
+                return (
+                  <button
+                    key={score}
+                    type="button"
+                    onClick={() => onChange(score)}
+                    className={`flex-shrink-0 w-9 h-9 rounded-full text-xs font-semibold transition-all ${
+                      isSelected
+                        ? "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
+                        : "bg-pink-50 text-muted-foreground hover:bg-pink-100 hover:scale-105"
+                    }`}
+                  >
+                    {score}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {question.type === "select" && question.options && (

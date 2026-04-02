@@ -234,7 +234,7 @@ export default function ChatThreadPage() {
   const bothRevealed = photoReveal.myReveal && photoReveal.partnerReveal;
 
   return (
-    <div className="flex flex-col fixed inset-0 top-14 bottom-0">
+    <div className="flex flex-col fixed top-14 bottom-0 inset-x-0 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-lg sm:bottom-16">
       {/* Chat Header */}
       <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3 pb-3 px-4 border-b border-pink-100 bg-white">
         <button

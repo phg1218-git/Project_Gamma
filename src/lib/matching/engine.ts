@@ -133,6 +133,8 @@ export async function findMatches(
   });
 
   // 3. Apply hard filters (양방향: 내가 상대 조건도 통과 + 상대가 내 조건도 통과)
+  const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
+
   const filteredCandidates = candidates.filter((candidate) => {
     if (!candidate.profile || !candidate.surveyResponse) return false;
 
@@ -155,7 +157,6 @@ export async function findMatches(
   });
 
   // 4. Score each candidate
-  const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
 
   const rawScored = filteredCandidates.map((candidate) => {
     const candidateAnswers = candidate.surveyResponse!.answers as Record<

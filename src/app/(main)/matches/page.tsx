@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Heart, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp,
   User, X, Brain, Droplet, Church, Wine, Cigarette, Ruler, Star,
-  Smile, Music, MessageCircle,
+  Smile, Music, MessageCircle, Sparkles,
 } from "lucide-react";
 import { JOB_CATEGORY_LABELS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS } from "@/constants/enums";
 import { calculateAge, parseLocation } from "@/lib/utils";
@@ -59,6 +59,32 @@ interface PartnerProfile {
   profileImage?: string;
 }
 
+interface FilterViolation {
+  key: string;
+  label: string;
+}
+
+interface SubthresholdRecommendation {
+  id: string;
+  score: number;
+  myMinScore: number;
+  violations: FilterViolation[];
+  targetUser: {
+    id: string;
+    nickname: string;
+    age: number;
+    gender: string;
+    jobCategory: string;
+    residenceProvince: string;
+    personality: string;
+    hobbies: string[];
+    preferences: string[];
+    mbti: string;
+    height: number | null;
+    celebrity: string | null;
+  };
+}
+
 export default function MatchesPage() {
   const router = useRouter();
   const [matches, setMatches] = useState<MatchData[]>([]);
@@ -70,6 +96,9 @@ export default function MatchesPage() {
   const [profileModal, setProfileModal] = useState<PartnerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [recommendation, setRecommendation] = useState<SubthresholdRecommendation | null>(null);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recActing, setRecActing] = useState(false);
 
   async function handleViewProfile(userId: string) {
     setProfileLoading(true);
@@ -83,6 +112,65 @@ export default function MatchesPage() {
       console.error("Failed to fetch partner profile:", error);
     } finally {
       setProfileLoading(false);
+    }
+  }
+
+  async function fetchRecommendation() {
+    setRecLoading(true);
+    try {
+      const res = await fetch("/api/matches/recommendation");
+      if (res.ok) {
+        const data = await res.json();
+        setRecommendation(data.recommendation ?? null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch recommendation:", error);
+    } finally {
+      setRecLoading(false);
+    }
+  }
+
+  // 나중에: 로컬에서만 닫기 (DB 변경 없음 → 다음 방문 시 재노출)
+  function handleRecDismiss() {
+    setRecommendation(null);
+  }
+
+  async function handleRecAction(action: "ACCEPT" | "DECLINE") {
+    if (!recommendation) return;
+    setRecActing(true);
+
+    // 거절(DECLINE): 모달 즉시 닫고 백그라운드 API 호출 (영구 비노출)
+    if (action === "DECLINE") {
+      setRecommendation(null);
+      fetch("/api/matches/recommendation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recommendationId: recommendation.id, action }),
+      }).catch(console.error).finally(() => setRecActing(false));
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/matches/recommendation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recommendationId: recommendation.id, action }),
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+
+      setRecommendation(null);
+
+      if (data.case === 1 && data.chatThreadId) {
+        router.push(`/chat/${data.chatThreadId}`);
+      } else if (data.case === 2) {
+        setMessage("매칭 요청을 보냈습니다! 상대방의 응답을 기다려주세요. 💌");
+      }
+    } catch (error) {
+      console.error("Failed to act on recommendation:", error);
+    } finally {
+      setRecActing(false);
     }
   }
 
@@ -108,6 +196,7 @@ export default function MatchesPage() {
 
   useEffect(() => {
     fetchMatches();
+    fetchRecommendation();
   }, [fetchMatches]);
 
   async function handleRefresh() {
@@ -232,6 +321,17 @@ export default function MatchesPage() {
           profile={profileModal}
           onClose={() => setProfileModal(null)}
           onZoomImage={setZoomImage}
+        />
+      )}
+
+      {/* 기준 점수 미만 추천 모달 */}
+      {!recLoading && recommendation && (
+        <RecommendationModal
+          recommendation={recommendation}
+          onDismiss={handleRecDismiss}
+          onDecline={() => handleRecAction("DECLINE")}
+          onAccept={() => handleRecAction("ACCEPT")}
+          acting={recActing}
         />
       )}
 
@@ -556,6 +656,147 @@ function ProfileModal({
               )}
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 기준 점수 미만 추천 모달 ─────────────────────────────────
+function RecommendationModal({
+  recommendation,
+  onDismiss,
+  onDecline,
+  onAccept,
+  acting,
+}: {
+  recommendation: SubthresholdRecommendation;
+  onDismiss: () => void;
+  onDecline: () => void;
+  onAccept: () => void;
+  acting: boolean;
+}) {
+  const { targetUser, score, myMinScore, violations } = recommendation;
+  const diff = myMinScore - score;
+  const hasViolations = violations && violations.length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-pink px-5 py-4 flex items-center gap-2">
+          <Sparkles size={18} className="text-white" />
+          <span className="text-white font-semibold text-sm">이런 분은 어떠세요?</span>
+        </div>
+
+        <div className="p-5">
+          {/* 메시지 */}
+          <div className="bg-pink-50 rounded-xl p-3 mb-4">
+            <p className="text-sm text-center text-foreground leading-relaxed">
+              당신의 기준 점수는{" "}
+              <span className="font-bold text-primary">{myMinScore}점</span>이지만,{" "}
+              <span className="font-bold text-primary">{score.toFixed(1)}점</span>의 잘 맞는 분이 있어요.
+              <br />
+              <span className="text-muted-foreground text-xs">({diff.toFixed(1)}점 차이)</span>
+              <br />
+              한 번 매칭해볼까요? 💫
+            </p>
+          </div>
+
+          {/* 하드 필터 위반 경고 */}
+          {hasViolations && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+              <p className="text-xs font-semibold text-amber-700 mb-2">⚠️ 내 조건과 다른 점</p>
+              <div className="flex flex-wrap gap-1.5">
+                {violations.map((v) => (
+                  <span
+                    key={v.key}
+                    className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-medium"
+                  >
+                    {v.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 프로필 요약 */}
+          <div className="card-romantic p-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-pink flex-shrink-0 flex items-center justify-center">
+                <span className="text-lg font-bold text-white">
+                  {targetUser.nickname.charAt(0)}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold">{targetUser.nickname}</p>
+                <p className="text-xs text-muted-foreground">
+                  {targetUser.age}세
+                  {targetUser.height ? ` · ${targetUser.height}cm` : ""}
+                  {" · "}MBTI {targetUser.mbti}
+                </p>
+              </div>
+              {/* 점수 뱃지 */}
+              <div className="ml-auto flex-shrink-0 text-center">
+                <div className="text-lg font-bold text-primary">{score.toFixed(1)}</div>
+                <div className="text-[10px] text-muted-foreground">호환도</div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Briefcase size={12} />
+                {JOB_CATEGORY_LABELS[targetUser.jobCategory] || targetUser.jobCategory}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin size={12} />
+                {targetUser.residenceProvince}
+              </span>
+            </div>
+
+            {/* 취미 */}
+            {targetUser.hobbies.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {targetUser.hobbies.slice(0, 4).map((h) => (
+                  <span
+                    key={h}
+                    className="px-2 py-0.5 rounded-full bg-pink-50 text-xs text-primary font-medium"
+                  >
+                    {h}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 버튼: 상단 2개 + 하단 1개 */}
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={onDismiss}
+              disabled={acting}
+              className="flex-1 py-2.5 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 active:bg-pink-100 transition-colors disabled:opacity-50"
+            >
+              나중에
+            </button>
+            <button
+              onClick={onDecline}
+              disabled={acting}
+              className="flex-1 py-2.5 rounded-xl border border-red-200 text-sm font-medium text-red-400 hover:bg-red-50 active:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              거절
+            </button>
+          </div>
+          <button
+            onClick={onAccept}
+            disabled={acting}
+            className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-pink text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all disabled:opacity-50"
+          >
+            <Heart size={15} fill="white" strokeWidth={0} />
+            {acting ? "처리 중..." : "매칭 해볼게요!"}
+          </button>
         </div>
       </div>
     </div>

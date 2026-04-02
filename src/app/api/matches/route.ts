@@ -26,12 +26,16 @@ export async function GET() {
     });
     const minScore = userProfile?.minMatchScore ?? 0;
 
-    // Fetch existing matches — REJECTED·EXPIRED 제외, 최소 점수 이상만
+    // Fetch existing matches — REJECTED·EXPIRED 제외
+    // ACCEPTED는 이미 수락된 매칭이므로 점수 변동과 무관하게 항상 표시
     const matches = await prisma.match.findMany({
       where: {
         senderId: session.user.id,
         status: { notIn: ["REJECTED", "EXPIRED"] },
-        score: { gte: minScore },
+        OR: [
+          { status: "ACCEPTED" },
+          { score: { gte: minScore } },
+        ],
       },
       include: {
         receiver: {
@@ -53,7 +57,10 @@ export async function GET() {
           where: {
             senderId: session.user.id,
             status: { notIn: ["REJECTED", "EXPIRED"] },
-            score: { gte: minScore },
+            OR: [
+              { status: "ACCEPTED" },
+              { score: { gte: minScore } },
+            ],
           },
           include: {
             receiver: {

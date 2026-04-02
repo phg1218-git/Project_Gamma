@@ -67,6 +67,8 @@ model User {
   sessions        Session[]
   surveyResponse  SurveyResponse?
   notifications   Notification[]
+  sentSubthresholdRec     SubthresholdRecommendation[] @relation("SubthresholdFrom")
+  receivedSubthresholdRec SubthresholdRecommendation[] @relation("SubthresholdTo")
 }
 
 model Profile {
@@ -186,18 +188,40 @@ model Admin {
 // Notifications sent by admins to users
 
 model Notification {
-  id        String             @id @default(cuid())
-  userId    String?            // null = broadcast to all users
-  type      NotificationType   @default(INFO)
-  title     String             @db.VarChar(100)
-  content   String             @db.VarChar(500)
-  isRead    Boolean            @default(false)
-  createdAt DateTime           @default(now())
-  readAt    DateTime?
-  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String           @id @default(cuid())
+  userId        String?          // null = broadcast to all users
+  type          NotificationType @default(INFO)
+  title         String           @db.VarChar(100)
+  content       String           @db.VarChar(500)
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  readAt        DateTime?
+  actionType    String?          // e.g., "MATCH_REQUEST"
+  actionPayload Json?            // e.g., { "recommendationId": "..." }
+  user          User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@index([createdAt])
+}
+
+// ── SubthresholdRecommendation ──────────────────────────────
+// 기준 점수 미만 유저 중 최고 점수 1명 추천 이력
+
+model SubthresholdRecommendation {
+  id         String             @id @default(cuid())
+  fromUserId String             // 추천을 받는 사용자 (A)
+  toUserId   String             // 추천 대상 (B, 기준 점수 미만)
+  score      Float              // A-B 매칭 점수
+  breakdown  Json               @default("{}")
+  status     SubthresholdStatus @default(SHOWN)
+  createdAt  DateTime           @default(now())
+  expiresAt  DateTime           // 쿨다운 만료 시각 (24h)
+  fromUser   User               @relation("SubthresholdFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User               @relation("SubthresholdTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId, status])
+  @@index([toUserId, status])
+  @@index([expiresAt])
 }
 
 enum Gender {
@@ -284,4 +308,14 @@ enum NotificationType {
   WARNING   // 주의사항
   IMPORTANT // 중요 공지
   EVENT     // 이벤트
+  SYSTEM    // 시스템 알림 (매칭 요청 등)
+}
+
+enum SubthresholdStatus {
+  SHOWN        // A에게 노출됨 (행동 대기)
+  DECLINED     // A가 '나중에' 선택 (쿨다운)
+  ACCEPTED     // A가 수락 (Case 1: 즉시 채팅 / Case 2: B 응답 대기)
+  PENDING_B    // Case 2: B의 응답 대기 중
+  CHAT_CREATED // 채팅방 생성 완료
+  B_REJECTED   // Case 2: B가 거절
 }

@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, markAllAsRead } = body;
+    const { id, markAllAsRead, excludeActionType } = body;
 
     // 모든 알림 읽음 처리
     if (markAllAsRead) {
@@ -54,6 +54,10 @@ export async function PATCH(req: NextRequest) {
         where: {
           userId: session.user.id,
           isRead: false,
+          // 특정 actionType 알림은 제외 (예: MATCH_REQUEST — 수락/거절로 처리)
+          ...(excludeActionType
+            ? { NOT: { actionType: excludeActionType } }
+            : {}),
         },
         data: {
           isRead: true,

@@ -80,9 +80,15 @@ export function Navbar() {
       }
     }
 
-    // 알림 읽음 처리 시 즉시 갱신
-    function onNotificationRead() {
-      fetchNotifications();
+    // 알림 읽음 처리 시 즉시 카운트 반영
+    // CustomEvent detail에 unreadCount가 있으면 API 호출 없이 직접 반영
+    function onNotificationRead(e: Event) {
+      const detail = (e as CustomEvent<{ unreadCount?: number }>).detail;
+      if (typeof detail?.unreadCount === "number") {
+        setNotificationCount(detail.unreadCount);
+      } else {
+        fetchNotifications();
+      }
     }
 
     document.addEventListener("visibilitychange", onVisible);
@@ -135,9 +141,8 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* Bottom nav (mobile-first) - 채팅 상세 페이지에서는 숨김 */}
-      {!isInChatThread && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-pink-100 safe-area-bottom">
+      {/* Bottom nav — 채팅 상세 페이지의 모바일에서만 숨김, PC(sm+)에서는 항상 표시 */}
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 glass border-t border-pink-100 safe-area-bottom ${isInChatThread ? "hidden sm:block" : ""}`}>
           <div className="container mx-auto max-w-lg flex items-center justify-around h-16 px-2">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href);
@@ -169,7 +174,6 @@ export function Navbar() {
             })}
           </div>
         </nav>
-      )}
     </>
   );
 }
