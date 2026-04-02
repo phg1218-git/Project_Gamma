@@ -15,6 +15,13 @@
     @apply border-border;
   }
 
+  /* Improved mobile touch scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     /* Subtle romantic gradient background */
@@ -24,17 +31,20 @@
       hsl(340, 30%, 99%) 100%
     );
     min-height: 100vh;
-  }
-
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Selection color — pink tint */
   ::selection {
     background-color: hsl(340, 82%, 90%);
     color: hsl(340, 60%, 22%);
+  }
+
+  /* Better touch scrolling on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -147,5 +157,22 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ── Safe area support for mobile devices ── */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
   }
 }

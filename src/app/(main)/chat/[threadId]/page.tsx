@@ -209,10 +209,10 @@ export default function ChatThreadPage() {
   return (
     <div className="flex flex-col h-[calc(100dvh-11.5rem)]">
       {/* Chat Header */}
-      <div className="flex items-center gap-3 pb-3 border-b border-pink-100">
+      <div className="flex items-center gap-2 sm:gap-3 pb-3 border-b border-pink-100">
         <button
           onClick={() => router.push("/chat")}
-          className="p-1 rounded-full hover:bg-pink-50 transition-colors"
+          className="p-2 rounded-full hover:bg-pink-50 active:bg-pink-100 transition-colors"
         >
           <ArrowLeft size={20} className="text-muted-foreground" />
         </button>
@@ -368,49 +368,49 @@ export default function ChatThreadPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="메시지를 입력하세요..."
               maxLength={1000}
-              className="flex-1 px-4 py-2.5 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+              className="flex-1 px-4 py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm sm:text-base"
             />
             <button
               type="submit"
               disabled={!input.trim() || sending}
-              className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 transition-opacity"
+              className="w-11 h-11 flex-shrink-0 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 active:brightness-95 transition-all"
             >
-              <Send size={16} className="text-white" />
+              <Send size={18} className="text-white" />
             </button>
           </div>
         </form>
       ) : (
         <div className="pt-3 border-t border-gray-100 text-center">
-          <p className="text-xs text-muted-foreground py-2">채팅이 종료되어 메시지를 보낼 수 없습니다.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground py-2">채팅이 종료되어 메시지를 보낼 수 없습니다.</p>
         </div>
       )}
 
       {/* 채팅 종료 확인 다이얼로그 */}
       {showCloseConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
           onClick={() => setShowCloseConfirm(false)}
         >
           <div
-            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full max-w-sm shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="font-bold text-base mb-2">채팅을 종료하시겠어요?</h3>
-            <p className="text-sm text-muted-foreground mb-5">
+            <h3 className="font-bold text-lg sm:text-base mb-2">채팅을 종료하시겠어요?</h3>
+            <p className="text-sm text-muted-foreground mb-6 sm:mb-5 leading-relaxed">
               채팅을 종료하면 더 이상 메시지를 보낼 수 없습니다.
               대화 내역은 30일 동안 보관된 후 자동으로 삭제됩니다.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCloseConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
+                className="flex-1 py-3 sm:py-2.5 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 active:bg-pink-100 transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleCloseChat}
                 disabled={closing}
-                className="flex-1 py-2.5 rounded-xl bg-red-400 text-sm font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+                className="flex-1 py-3 sm:py-2.5 rounded-xl bg-red-400 text-sm font-medium text-white hover:bg-red-500 active:bg-red-600 transition-colors disabled:opacity-50"
               >
                 {closing ? "종료 중..." : "채팅 종료"}
               </button>
@@ -422,14 +422,14 @@ export default function ChatThreadPage() {
       {/* Image Zoom Modal */}
       {zoomImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           onClick={() => setZoomImage(null)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomImage}
             alt="프로필 사진"
-            className="max-w-full max-h-full rounded-2xl object-contain"
+            className="max-w-full max-h-full rounded-2xl object-contain touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

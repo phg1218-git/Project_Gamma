@@ -3,6 +3,49 @@ import { passesHardFilters } from "./filters";
 import { computeCompatibilityScore, type ScoreBreakdown } from "./scoring";
 
 /**
+ * 나이 계산 헬퍼 함수
+ */
+function calculateAge(dateOfBirth: Date): number {
+  const today = new Date();
+  let age = today.getFullYear() - dateOfBirth.getFullYear();
+  const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+/**
+ * 나이차 필터 통과 여부 확인
+ * @param answers - 설문 응답
+ * @param myAge - 내 나이
+ * @param partnerAge - 상대방 나이
+ */
+function passesAgeGapFilter(
+  answers: Record<string, number | string | string[]>,
+  myAge: number,
+  partnerAge: number,
+): boolean {
+  const ageGapOlder = (answers.pf_age_gap_older as number) ?? 15; // 연상 허용 범위
+  const ageGapYounger = (answers.pf_age_gap_younger as number) ?? 15; // 연하 허용 범위
+
+  const ageDiff = partnerAge - myAge;
+
+  // 상대방이 나보다 나이가 많은 경우
+  if (ageDiff > 0) {
+    return ageDiff <= ageGapOlder;
+  }
+
+  // 상대방이 나보다 나이가 적은 경우
+  if (ageDiff < 0) {
+    return Math.abs(ageDiff) <= ageGapYounger;
+  }
+
+  // 동갑인 경우 항상 통과
+  return true;
+}
+
+/**
  * 이어줌 — Core Matching Engine
  *
  * Orchestrates the full matching pipeline:
@@ -91,11 +134,24 @@ export async function findMatches(
 
   // 3. Apply hard filters (양방향: 내가 상대 조건도 통과 + 상대가 내 조건도 통과)
   const filteredCandidates = candidates.filter((candidate) => {
-    if (!candidate.profile) return false;
-    return (
-      passesHardFilters(user.profile!, candidate.profile) &&
-      passesHardFilters(candidate.profile, user.profile!)
-    );
+    if (!candidate.profile || !candidate.surveyResponse) return false;
+
+    // 기본 하드 필터
+    if (!passesHardFilters(user.profile!, candidate.profile)) return false;
+    if (!passesHardFilters(candidate.profile, user.profile!)) return false;
+
+    // 나이차 필터 (양방향)
+    const userAge = calculateAge(user.profile!.dateOfBirth);
+    const candidateAge = calculateAge(candidate.profile.dateOfBirth);
+
+    // 내가 설정한 나이차 범위 내에 상대방이 있는지 확인
+    if (!passesAgeGapFilter(userAnswers, userAge, candidateAge)) return false;
+
+    // 상대방이 설정한 나이차 범위 내에 내가 있는지 확인
+    const candidateAnswers = candidate.surveyResponse.answers as Record<string, number | string | string[]>;
+    if (!passesAgeGapFilter(candidateAnswers, candidateAge, userAge)) return false;
+
+    return true;
   });
 
   // 4. Score each candidate
@@ -110,13 +166,7 @@ export async function findMatches(
     const profile = candidate.profile!;
 
     // Calculate age dynamically (만 나이, 생일 경과 여부 반영)
-    const today = new Date();
-    const birth = profile.dateOfBirth; // already a Date from Prisma
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
+    const age = calculateAge(profile.dateOfBirth);
 
     // Extract province from location
     const [residenceProvince] = profile.residenceLocation.split("|");

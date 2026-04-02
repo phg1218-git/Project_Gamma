@@ -143,37 +143,37 @@ export default function ProfilePage() {
         <h3 className="flex items-center gap-2 font-semibold text-sm mb-3">
           <Brain size={16} className="text-primary" /> 속성
         </h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-2 text-sm">
           <div className="flex items-center gap-2">
-            <Brain size={14} className="text-muted-foreground" />
-            MBTI: {profile.mbti}
+            <Brain size={14} className="text-muted-foreground flex-shrink-0" />
+            <span>MBTI: {profile.mbti}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Droplet size={14} className="text-muted-foreground" />
-            혈액형: {BLOOD_TYPE_LABELS[profile.bloodType]}
+            <Droplet size={14} className="text-muted-foreground flex-shrink-0" />
+            <span>혈액형: {BLOOD_TYPE_LABELS[profile.bloodType]}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Church size={14} className="text-muted-foreground" />
-            종교: {RELIGION_LABELS[profile.religion]}
+            <Church size={14} className="text-muted-foreground flex-shrink-0" />
+            <span>종교: {RELIGION_LABELS[profile.religion]}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Wine size={14} className="text-muted-foreground" />
-            음주: {DRINKING_LABELS[profile.drinking]}
+            <Wine size={14} className="text-muted-foreground flex-shrink-0" />
+            <span>음주: {DRINKING_LABELS[profile.drinking]}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Cigarette size={14} className="text-muted-foreground" />
-            흡연: {SMOKING_LABELS[profile.smoking]}
+            <Cigarette size={14} className="text-muted-foreground flex-shrink-0" />
+            <span>흡연: {SMOKING_LABELS[profile.smoking]}</span>
           </div>
           {profile.height && (
             <div className="flex items-center gap-2">
-              <Ruler size={14} className="text-muted-foreground" />
-              키: {profile.height}cm
+              <Ruler size={14} className="text-muted-foreground flex-shrink-0" />
+              <span>키: {profile.height}cm</span>
             </div>
           )}
           {profile.celebrity && (
-            <div className="flex items-center gap-2 col-span-2">
-              <Star size={14} className="text-muted-foreground" />
-              닮은꼴: {profile.celebrity}
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <Star size={14} className="text-muted-foreground flex-shrink-0" />
+              <span>닮은꼴: {profile.celebrity}</span>
             </div>
           )}
         </div>

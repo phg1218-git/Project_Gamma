@@ -32,6 +32,12 @@ export const CATEGORY_WEIGHTS = {
 // ── Survey Question → Category Mapping ──
 // Maps each survey question ID to the scoring category it belongs to.
 export const QUESTION_CATEGORY_MAP: Record<string, keyof typeof CATEGORY_WEIGHTS> = {
+  // Preferences → surveySimilarity
+  pf_appearance_importance: "surveySimilarity",
+  pf_age_gap_older: "surveySimilarity",
+  pf_age_gap_younger: "surveySimilarity",
+  pf_height_importance: "surveySimilarity",
+
   // Dating Values → surveySimilarity
   dv_importance_of_love: "surveySimilarity",
   dv_ideal_relationship_pace: "surveySimilarity",
@@ -72,6 +78,10 @@ export const QUESTION_CATEGORY_MAP: Record<string, keyof typeof CATEGORY_WEIGHTS
 // Within each category, some questions matter more.
 // Default weight is 1.0. Values > 1.0 mean higher importance.
 export const QUESTION_WEIGHTS: Record<string, number> = {
+  pf_appearance_importance: 0.8,   // 외모 중요도는 참고용
+  pf_age_gap_older: 1.0,           // 나이차 허용 범위
+  pf_age_gap_younger: 1.0,
+  pf_height_importance: 0.7,       // 키 중요도는 참고용
   dv_importance_of_love: 1.2,
   dv_conflict_resolution: 1.3,     // Conflict resolution is very predictive
   fp_marriage_intent: 1.5,         // Marriage intent is a major deal-maker/breaker

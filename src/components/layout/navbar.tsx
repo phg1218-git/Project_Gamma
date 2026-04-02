@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Heart, User, ClipboardList, Users, MessageCircle, ShieldCheck } from "lucide-react";
+import { Heart, User, ClipboardList, Users, MessageCircle, ShieldCheck, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,6 +25,7 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -50,12 +51,30 @@ export function Navbar() {
       }
     }
 
+    async function fetchNotifications() {
+      try {
+        const res = await fetch("/api/notifications");
+        if (!res.ok) return;
+        const data = await res.json();
+        setNotificationCount(data.unreadCount || 0);
+      } catch {
+        // 무시
+      }
+    }
+
     fetchUnread();
-    const interval = setInterval(fetchUnread, 60_000);
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchUnread();
+      fetchNotifications();
+    }, 60_000);
 
     // 탭 포커스 시 즉시 갱신
     function onVisible() {
-      if (document.visibilityState === "visible") fetchUnread();
+      if (document.visibilityState === "visible") {
+        fetchUnread();
+        fetchNotifications();
+      }
     }
     document.addEventListener("visibilitychange", onVisible);
 
@@ -84,6 +103,17 @@ export function Navbar() {
                 관리자
               </button>
             )}
+            <Link
+              href="/notifications"
+              className="text-muted-foreground hover:text-primary transition-colors relative"
+            >
+              <Bell size={20} />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </span>
+              )}
+            </Link>
             <Link
               href="/settings"
               className="text-muted-foreground hover:text-primary transition-colors"

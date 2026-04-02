@@ -150,7 +150,7 @@ export default function MatchesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">매칭 결과</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">매칭 결과</h1>
           <p className="text-sm text-muted-foreground">
             {matches.length}명의 추천 상대
           </p>
@@ -159,7 +159,7 @@ export default function MatchesPage() {
           onClick={handleRefresh}
           disabled={refreshing}
           aria-label="매칭 결과 새로고침"
-          className="p-2 rounded-full bg-pink-50 hover:bg-pink-100 transition-colors disabled:opacity-50"
+          className="p-3 rounded-full bg-pink-50 hover:bg-pink-100 active:bg-pink-200 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={20} className={`text-primary ${refreshing ? "animate-spin" : ""}`} />
         </button>
@@ -240,14 +240,14 @@ export default function MatchesPage() {
         <div
           role="dialog"
           aria-label="프로필 사진 확대 보기"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
           onClick={() => setZoomImage(null)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomImage}
             alt="프로필 사진"
-            className="max-w-full max-h-full rounded-2xl object-contain"
+            className="max-w-full max-h-full rounded-2xl object-contain touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
@@ -351,11 +351,11 @@ function MatchCard({
           <div className="flex gap-2">
             <button
               onClick={onReject}
-              className="flex-1 py-2 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 transition-colors"
+              className="flex-1 py-3 rounded-xl border border-pink-200 text-sm font-medium text-muted-foreground hover:bg-pink-50 active:bg-pink-100 transition-colors"
             >
               넘기기
             </button>
-            <button onClick={onAccept} className="flex-1 btn-gradient text-sm">
+            <button onClick={onAccept} className="flex-1 btn-gradient text-sm py-3">
               관심있어요
             </button>
           </div>
@@ -363,19 +363,19 @@ function MatchCard({
         {match.status === "ACCEPTED" && onChatStart && (
           <button
             onClick={onChatStart}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gradient-pink text-sm font-medium text-white"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-pink text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all"
           >
             <MessageCircle size={15} />
             서로 통했습니다! 채팅을 시작해보세요
           </button>
         )}
         {match.status === "ACCEPTED" && !onChatStart && (
-          <div className="text-center py-2 rounded-xl bg-pink-50 text-sm font-medium text-primary">
+          <div className="text-center py-3 rounded-xl bg-pink-50 text-sm font-medium text-primary">
             관심을 보냈습니다! 상대방의 응답을 기다리고 있어요 💌
           </div>
         )}
         {match.status === "REJECTED" && (
-          <div className="text-center py-2 rounded-xl bg-gray-50 text-sm font-medium text-muted-foreground">
+          <div className="text-center py-3 rounded-xl bg-gray-50 text-sm font-medium text-muted-foreground">
             넘김
           </div>
         )}
@@ -441,15 +441,15 @@ function ProfileModal({
   const residence = parseLocation(profile.residenceLocation);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white rounded-t-2xl border-b border-pink-100 px-4 py-3 flex items-center justify-between">
+        <div className="sticky top-0 bg-white rounded-t-2xl border-b border-pink-100 px-4 py-3 flex items-center justify-between z-10">
           <h3 className="font-semibold">프로필</h3>
-          <button onClick={onClose} aria-label="프로필 닫기" className="p-1 rounded-full hover:bg-pink-50">
+          <button onClick={onClose} aria-label="프로필 닫기" className="p-2 rounded-full hover:bg-pink-50 active:bg-pink-100 transition-colors">
             <X size={20} className="text-muted-foreground" />
           </button>
         </div>
@@ -521,37 +521,37 @@ function ProfileModal({
             <h4 className="flex items-center gap-2 font-semibold text-sm mb-2">
               <Brain size={14} className="text-primary" /> 속성
             </h4>
-            <div className="grid grid-cols-2 gap-1.5 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1.5 text-sm">
               <div className="flex items-center gap-1.5">
-                <Brain size={12} className="text-muted-foreground" />
-                MBTI: {profile.mbti}
+                <Brain size={12} className="text-muted-foreground flex-shrink-0" />
+                <span>MBTI: {profile.mbti}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Droplet size={12} className="text-muted-foreground" />
-                혈액형: {BLOOD_TYPE_LABELS[profile.bloodType] || profile.bloodType}
+                <Droplet size={12} className="text-muted-foreground flex-shrink-0" />
+                <span>혈액형: {BLOOD_TYPE_LABELS[profile.bloodType] || profile.bloodType}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Church size={12} className="text-muted-foreground" />
-                종교: {RELIGION_LABELS[profile.religion] || profile.religion}
+                <Church size={12} className="text-muted-foreground flex-shrink-0" />
+                <span>종교: {RELIGION_LABELS[profile.religion] || profile.religion}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Wine size={12} className="text-muted-foreground" />
-                음주: {DRINKING_LABELS[profile.drinking] || profile.drinking}
+                <Wine size={12} className="text-muted-foreground flex-shrink-0" />
+                <span>음주: {DRINKING_LABELS[profile.drinking] || profile.drinking}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Cigarette size={12} className="text-muted-foreground" />
-                흡연: {SMOKING_LABELS[profile.smoking] || profile.smoking}
+                <Cigarette size={12} className="text-muted-foreground flex-shrink-0" />
+                <span>흡연: {SMOKING_LABELS[profile.smoking] || profile.smoking}</span>
               </div>
               {profile.height && (
                 <div className="flex items-center gap-1.5">
-                  <Ruler size={12} className="text-muted-foreground" />
-                  키: {profile.height}cm
+                  <Ruler size={12} className="text-muted-foreground flex-shrink-0" />
+                  <span>키: {profile.height}cm</span>
                 </div>
               )}
               {profile.celebrity && (
-                <div className="flex items-center gap-1.5 col-span-2">
-                  <Star size={12} className="text-muted-foreground" />
-                  닮은꼴: {profile.celebrity}
+                <div className="flex items-center gap-1.5 sm:col-span-2">
+                  <Star size={12} className="text-muted-foreground flex-shrink-0" />
+                  <span>닮은꼴: {profile.celebrity}</span>
                 </div>
               )}
             </div>

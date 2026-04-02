@@ -37,6 +37,7 @@ export interface SurveyQuestion {
 
 // ── Survey Categories ──
 export const SURVEY_CATEGORIES = [
+  { id: "preferences", label: "이상형 조건", description: "원하는 상대의 조건" },
   { id: "dating_values", label: "연애관", description: "연애에 대한 가치관" },
   { id: "lifestyle", label: "라이프스타일", description: "일상 생활 패턴" },
   { id: "communication", label: "소통 방식", description: "대화와 소통 스타일" },
@@ -46,6 +47,48 @@ export const SURVEY_CATEGORIES = [
 
 // ── Survey Questions ──
 export const SURVEY_QUESTIONS: SurveyQuestion[] = [
+  // ━━━ 이상형 조건 (Preferences) ━━━
+  {
+    id: "pf_appearance_importance",
+    type: "slider",
+    category: "preferences",
+    label: "상대방의 외모 중요도는?",
+    description: "외모가 연애에서 차지하는 비중",
+    required: true,
+    slider: { min: 0, max: 10, step: 1, minLabel: "중요하지 않음", maxLabel: "매우 중요함" },
+    perspective: "partner",
+  },
+  {
+    id: "pf_age_gap_older",
+    type: "slider",
+    category: "preferences",
+    label: "연상 상대는 몇 살 차이까지 괜찮나요?",
+    description: "나보다 나이가 많은 경우",
+    required: true,
+    slider: { min: 0, max: 15, step: 1, minLabel: "동갑만", maxLabel: "15살 이상" },
+    perspective: "partner",
+  },
+  {
+    id: "pf_age_gap_younger",
+    type: "slider",
+    category: "preferences",
+    label: "연하 상대는 몇 살 차이까지 괜찮나요?",
+    description: "나보다 나이가 적은 경우",
+    required: true,
+    slider: { min: 0, max: 15, step: 1, minLabel: "동갑만", maxLabel: "15살 이상" },
+    perspective: "partner",
+  },
+  {
+    id: "pf_height_importance",
+    type: "slider",
+    category: "preferences",
+    label: "상대방의 키 중요도는?",
+    description: "키가 연애에서 차지하는 비중",
+    required: true,
+    slider: { min: 0, max: 10, step: 1, minLabel: "중요하지 않음", maxLabel: "매우 중요함" },
+    perspective: "partner",
+  },
+
   // ━━━ 연애관 (Dating Values) ━━━
   {
     id: "dv_importance_of_love",

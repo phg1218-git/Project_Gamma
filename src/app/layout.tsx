@@ -39,6 +39,12 @@ export const metadata: Metadata = {
     "구조화된 설문과 가중 점수 매칭 알고리즘으로 나에게 꼭 맞는 사람을 찾아보세요. 완전 익명 데이트 매칭 플랫폼.",
   keywords: ["이어줌", "소개팅", "매칭", "데이트", "연애", "익명 매칭", "궁합"],
   authors: [{ name: "이어줌" }],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
   openGraph: {
     title: "이어줌 — 당신의 인연을 이어줍니다",
     description: "구조화된 설문과 과학적 매칭으로 당신의 인연을 이어줍니다.",

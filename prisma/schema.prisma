@@ -66,6 +66,7 @@ model User {
   profile         Profile?
   sessions        Session[]
   surveyResponse  SurveyResponse?
+  notifications   Notification[]
 }
 
 model Profile {
@@ -181,6 +182,24 @@ model Admin {
   @@index([isActive])
 }
 
+// ── Notification Model ─────────────────────────────────────
+// Notifications sent by admins to users
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String?            // null = broadcast to all users
+  type      NotificationType   @default(INFO)
+  title     String             @db.VarChar(100)
+  content   String             @db.VarChar(500)
+  isRead    Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -258,4 +277,11 @@ enum MatchStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+enum NotificationType {
+  INFO      // 일반 정보
+  WARNING   // 주의사항
+  IMPORTANT // 중요 공지
+  EVENT     // 이벤트
 }
