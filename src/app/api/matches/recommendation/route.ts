@@ -139,6 +139,7 @@ export async function GET() {
     }
 
     const minScore = user.profile.minMatchScore ?? 0;
+    const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
 
     // minScore가 0이면 "기준 미만" 개념 없음
     if (minScore === 0) {
@@ -226,10 +227,6 @@ export async function GET() {
       include: { profile: true, surveyResponse: true },
     });
 
-    const userAnswers = user.surveyResponse.answers as Record<
-      string,
-      number | string | string[]
-    >;
     const userProfile = user.profile;
 
     // 점수 계산 — 딜브레이커·나이차는 제외하지 않고 violations로 반환
