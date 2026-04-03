@@ -397,7 +397,7 @@ export default function ChatThreadPage() {
               onFocus={handleInputFocus}
               placeholder="메시지를 입력하세요..."
               maxLength={1000}
-              className="flex-1 px-4 py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm sm:text-base"
+              className="flex-1 px-4 py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
             />
             <button
               type="submit"
