@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
             nickname: true,
             gender: true,
             stopMatching: true,
+            profileImage: true,
           },
         },
       },

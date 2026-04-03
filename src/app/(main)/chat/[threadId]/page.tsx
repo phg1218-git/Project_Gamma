@@ -331,7 +331,11 @@ export default function ChatThreadPage() {
       )}
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto py-4 px-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+        <div className="flex flex-col min-h-full py-4 px-4">
+          {/* 메시지가 적을 때 아래에서부터 쌓이도록 빈 공간 확보 */}
+          <div className="flex-1" />
+          <div className="space-y-3">
         {messages.length === 0 && (
           <div className="text-center py-8">
             <Heart className="mx-auto mb-2 text-pink-200" size={32} />
@@ -383,6 +387,8 @@ export default function ChatThreadPage() {
           </div>
         ))}
         <div ref={messagesEndRef} />
+          </div>
+        </div>
       </div>
 
       {/* Message Input */}
@@ -397,14 +403,15 @@ export default function ChatThreadPage() {
               onFocus={handleInputFocus}
               placeholder="메시지를 입력하세요..."
               maxLength={1000}
-              className="flex-1 px-4 py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
+              className="flex-1 px-3 py-2 sm:px-4 sm:py-3 rounded-full border border-pink-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
             />
             <button
               type="submit"
               disabled={!input.trim() || sending}
-              className="w-11 h-11 flex-shrink-0 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 active:brightness-95 transition-all"
+              className="w-8 h-8 sm:w-11 sm:h-11 flex-shrink-0 rounded-full bg-gradient-pink flex items-center justify-center disabled:opacity-50 active:brightness-95 transition-all"
             >
-              <Send size={18} className="text-white" />
+              <Send size={15} className="text-white sm:hidden" />
+              <Send size={18} className="text-white hidden sm:block" />
             </button>
           </div>
         </form>

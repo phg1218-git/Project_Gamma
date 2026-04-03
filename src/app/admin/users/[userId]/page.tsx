@@ -84,14 +84,31 @@ export default function AdminUserDetailPage() {
     <div>
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Link href="/admin/users" className="text-sm text-slate-500 hover:text-slate-700">
-            &larr; 회원 목록
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">
-            {(user.profile as { nickname?: string })?.nickname || user.name || "이름 없음"}
-          </h1>
-          <p className="text-sm text-slate-500">{user.email} / 가입: {new Date(user.createdAt).toLocaleDateString("ko-KR")}</p>
+        <div className="flex items-center gap-4">
+          {/* 프로필 사진 */}
+          {(user.profile as { profileImage?: string | null })?.profileImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={(user.profile as { profileImage: string }).profileImage}
+              alt="프로필"
+              className="h-16 w-16 rounded-full object-cover flex-shrink-0 border border-slate-200"
+            />
+          ) : (
+            <div className="h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-bold text-slate-400">
+                {((user.profile as { nickname?: string })?.nickname || user.name || "?").charAt(0)}
+              </span>
+            </div>
+          )}
+          <div>
+            <Link href="/admin/users" className="text-sm text-slate-500 hover:text-slate-700">
+              &larr; 회원 목록
+            </Link>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">
+              {(user.profile as { nickname?: string })?.nickname || user.name || "이름 없음"}
+            </h1>
+            <p className="text-sm text-slate-500">{user.email} / 가입: {new Date(user.createdAt).toLocaleDateString("ko-KR")}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Link
@@ -153,6 +170,30 @@ function ProfileTab({ user }: { user: UserDetail }) {
 
   return (
     <div>
+      {/* 프로필 사진 */}
+      <div className="mb-4 flex items-center gap-3 pb-4 border-b border-slate-100">
+        {p.profileImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.profileImage as string}
+            alt="프로필 사진"
+            className="h-20 w-20 rounded-full object-cover border border-slate-200 cursor-pointer hover:opacity-90"
+            onClick={() => window.open(p.profileImage as string, "_blank")}
+          />
+        ) : (
+          <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center">
+            <span className="text-2xl font-bold text-slate-300">
+              {(p.nickname as string)?.charAt(0) || "?"}
+            </span>
+          </div>
+        )}
+        <div>
+          <p className="text-sm font-medium text-slate-900">{p.nickname as string}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {p.profileImage ? "사진 클릭 시 원본 보기" : "등록된 프로필 사진 없음"}
+          </p>
+        </div>
+      </div>
       <InfoRow label="닉네임" value={p.nickname as string} />
       <InfoRow label="성별" value={GENDER_LABEL[p.gender as string]} />
       <InfoRow label="생년월일" value={p.dateOfBirth ? new Date(p.dateOfBirth as string).toLocaleDateString("ko-KR") : null} />

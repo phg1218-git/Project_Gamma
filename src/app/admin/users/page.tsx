@@ -13,6 +13,7 @@ interface UserRow {
     nickname: string;
     gender: string;
     stopMatching: boolean;
+    profileImage: string | null;
   } | null;
 }
 
@@ -105,8 +106,26 @@ export default function AdminUsersPage() {
             ) : (
               users.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-900">
-                    {user.profile?.nickname || "-"}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {user.profile?.profileImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={user.profile.profileImage}
+                          alt={user.profile.nickname}
+                          className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-medium text-slate-500">
+                            {user.profile?.nickname?.charAt(0) || "?"}
+                          </span>
+                        </div>
+                      )}
+                      <span className="font-medium text-slate-900">
+                        {user.profile?.nickname || "-"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{user.name || "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{user.email || "-"}</td>
