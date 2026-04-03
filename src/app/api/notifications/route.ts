@@ -54,9 +54,13 @@ export async function PATCH(req: NextRequest) {
         where: {
           userId: session.user.id,
           isRead: false,
-          // 특정 actionType 알림은 제외 (예: MATCH_REQUEST — 수락/거절로 처리)
+          // 특정 actionType 알림은 제외 (수락/거절 버튼으로 처리하는 알림)
           ...(excludeActionType
-            ? { NOT: { actionType: excludeActionType } }
+            ? {
+                NOT: Array.isArray(excludeActionType)
+                  ? { actionType: { in: excludeActionType } }
+                  : { actionType: excludeActionType },
+              }
             : {}),
         },
         data: {

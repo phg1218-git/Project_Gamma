@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Bell, Check, MessageCircle } from "lucide-react";
+import { Heart, Bell, Check, MessageCircle, Sparkles } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -87,18 +87,30 @@ export default function NotificationsPage() {
   }
 
   async function handleMarkAllAsRead() {
+    // 액션 대기 중인 알림(수락/거절 버튼 있는 것)은 제외하고 읽음 처리
+    const ACTION_TYPES = ["MATCH_REQUEST"]; // 버튼 있는 타입만 제외
     setNotifications((prev) =>
-      prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
+      prev.map((n) =>
+        ACTION_TYPES.includes(n.actionType ?? "")
+          ? n
+          : { ...n, isRead: true, readAt: new Date().toISOString() }
+      )
     );
+    const newCount = notifications.filter(
+      (n) => !n.isRead && ACTION_TYPES.includes(n.actionType ?? "")
+    ).length;
     window.dispatchEvent(
-      new CustomEvent("notificationRead", { detail: { unreadCount: 0 } })
+      new CustomEvent("notificationRead", { detail: { unreadCount: newCount } })
     );
 
     try {
       await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markAllAsRead: true }),
+        body: JSON.stringify({
+          markAllAsRead: true,
+          excludeActionType: ["MATCH_REQUEST"],
+        }),
       });
     } catch (error) {
       console.error("Failed to mark all as read:", error);
@@ -190,46 +202,58 @@ export default function NotificationsPage() {
           </div>
         ) : (
           notifications.map((notif) => {
-            const isMatchRequest =
-              notif.actionType === "MATCH_REQUEST" && !notif.isRead;
+            const isMatchRequest = notif.actionType === "MATCH_REQUEST";
+            const isSubthresholdRequest = notif.actionType === "SUBTHRESHOLD_REQUEST";
+            const hasAction = isMatchRequest; // SUBTHRESHOLD_REQUEST는 버튼 없음 → 클릭으로 읽음 처리
             const isResponding = respondingId === notif.id;
 
             return (
               <div
                 key={notif.id}
-                className={`card-romantic p-4 transition-all ${
-                  notif.isRead && !isMatchRequest ? "opacity-60" : ""
+                className={`transition-all ${
+                  isSubthresholdRequest
+                    ? "rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-4 shadow-sm"
+                    : `card-romantic p-4 ${notif.isRead && !hasAction ? "opacity-60" : ""}`
                 }`}
                 onClick={() => {
-                  // MATCH_REQUEST 알림은 버튼으로만 처리, 일반 클릭 무시
-                  if (!notif.isRead && !isMatchRequest) {
+                  if (!notif.isRead && !hasAction) {
                     handleMarkAsRead(notif.id);
                   }
                 }}
               >
                 <div className="flex items-start gap-3">
                   {/* Unread indicator */}
-                  {!notif.isRead && (
+                  {!notif.isRead && !isSubthresholdRequest && (
                     <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
                   )}
 
                   <div className="flex-1 min-w-0">
-                    {/* Type badge */}
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-2 ${
-                        TYPE_COLORS[notif.type]
-                      }`}
-                    >
-                      {TYPE_LABELS[notif.type]}
-                    </span>
+                    {/* 인연 제안 배지 */}
+                    {isSubthresholdRequest ? (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                          <Sparkles size={11} />
+                          인연 제안
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+                      </div>
+                    ) : (
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-2 ${
+                          TYPE_COLORS[notif.type]
+                        }`}
+                      >
+                        {TYPE_LABELS[notif.type]}
+                      </span>
+                    )}
 
                     {/* Title */}
-                    <h3 className="font-semibold text-foreground mb-1">
+                    <h3 className={`font-semibold mb-1 ${isSubthresholdRequest ? "text-violet-900" : "text-foreground"}`}>
                       {notif.title}
                     </h3>
 
                     {/* Content */}
-                    <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
+                    <p className={`text-sm mb-2 whitespace-pre-wrap ${isSubthresholdRequest ? "text-violet-700" : "text-muted-foreground"}`}>
                       {notif.content}
                     </p>
 
@@ -244,7 +268,7 @@ export default function NotificationsPage() {
                       })}
                     </p>
 
-                    {/* MATCH_REQUEST 액션 버튼 */}
+                    {/* MATCH_REQUEST 액션 버튼 (일반) */}
                     {isMatchRequest && (
                       <div className="flex gap-2 mt-3">
                         <button
@@ -270,10 +294,17 @@ export default function NotificationsPage() {
                         </button>
                       </div>
                     )}
+
+                    {/* SUBTHRESHOLD_REQUEST — 버튼 없음, 매칭 화면에서 결정 */}
+                    {isSubthresholdRequest && (
+                      <p className="mt-2 text-xs text-violet-400">
+                        매칭 화면에서 프로필을 확인하고 결정할 수 있어요.
+                      </p>
+                    )}
                   </div>
 
                   {/* Read status */}
-                  {notif.isRead && !isMatchRequest && (
+                  {notif.isRead && !hasAction && (
                     <Check size={16} className="text-green-500 flex-shrink-0 mt-1" />
                   )}
                 </div>

@@ -120,6 +120,7 @@ model Match {
   score      Float
   breakdown  Json
   status     MatchStatus @default(PENDING)
+  matchType  MatchType   @default(REGULAR)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   chatThread ChatThread?
@@ -301,6 +302,11 @@ enum MatchStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+enum MatchType {
+  REGULAR       // 일반 알고리즘 매칭
+  SUBTHRESHOLD  // 점수 미달 인연 제안
 }
 
 enum NotificationType {

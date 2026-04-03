@@ -27,7 +27,7 @@ export async function GET() {
     const minScore = userProfile?.minMatchScore ?? 0;
 
     // Fetch existing matches — REJECTED·EXPIRED 제외
-    // ACCEPTED는 이미 수락된 매칭이므로 점수 변동과 무관하게 항상 표시
+    // SUBTHRESHOLD 타입은 점수 무관하게 항상 표시
     const matches = await prisma.match.findMany({
       where: {
         senderId: session.user.id,
@@ -35,6 +35,7 @@ export async function GET() {
         OR: [
           { status: "ACCEPTED" },
           { score: { gte: minScore } },
+          { matchType: "SUBTHRESHOLD" },
         ],
       },
       include: {
@@ -52,7 +53,7 @@ export async function GET() {
         const results = await findMatches(session.user.id, 10);
         await saveMatchResults(session.user.id, results, minScore);
 
-        // Re-fetch after saving (REJECTED·EXPIRED 제외, minScore 이상만)
+        // Re-fetch after saving
         const newMatches = await prisma.match.findMany({
           where: {
             senderId: session.user.id,
@@ -60,6 +61,7 @@ export async function GET() {
             OR: [
               { status: "ACCEPTED" },
               { score: { gte: minScore } },
+              { matchType: "SUBTHRESHOLD" },
             ],
           },
           include: {
@@ -91,7 +93,7 @@ export async function GET() {
         }
 
         const chatThreadMap = await buildChatThreadMap(session.user.id, newMatches.map(m => m.receiver.id));
-        return NextResponse.json(formatMatches(newMatches, session.user.id, chatThreadMap));
+        return NextResponse.json(formatMatches(newMatches, session.user.id, chatThreadMap, minScore));
       } catch (matchError) {
         // Profile or survey not complete
         return NextResponse.json({
@@ -103,7 +105,7 @@ export async function GET() {
     }
 
     const chatThreadMap = await buildChatThreadMap(session.user.id, matches.map(m => m.receiver.id));
-    return NextResponse.json(formatMatches(matches, session.user.id, chatThreadMap));
+    return NextResponse.json(formatMatches(matches, session.user.id, chatThreadMap, minScore));
   } catch (error) {
     console.error("[Matches GET]", error);
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 });
@@ -172,9 +174,8 @@ export async function PATCH(request: Request) {
       data: { status },
     });
 
-    // If both users accepted, create a chat thread (idempotent)
+    // If both users accepted, create a chat thread + notify both (idempotent)
     if (status === "ACCEPTED") {
-      // Check if the reverse match is also accepted
       const reverseMatch = await prisma.match.findFirst({
         where: {
           senderId: match.receiverId,
@@ -184,7 +185,8 @@ export async function PATCH(request: Request) {
       });
 
       if (reverseMatch) {
-        // Both accepted — create chat thread inside a transaction to prevent duplicates
+        const isSubthreshold = match.matchType === "SUBTHRESHOLD";
+
         await prisma.$transaction(async (tx) => {
           const existingThread = await tx.chatThread.findUnique({
             where: { matchId: match.id },
@@ -198,6 +200,32 @@ export async function PATCH(request: Request) {
               },
             });
           }
+
+          const [profileA, profileB] = await Promise.all([
+            tx.profile.findUnique({ where: { userId: match.senderId }, select: { nickname: true } }),
+            tx.profile.findUnique({ where: { userId: match.receiverId }, select: { nickname: true } }),
+          ]);
+
+          await tx.notification.createMany({
+            data: [
+              {
+                userId: match.senderId,
+                type: "SYSTEM",
+                title: isSubthreshold ? "인연이 이어졌습니다! 🎉" : "매칭 성사! 🎉",
+                content: isSubthreshold
+                  ? `${profileB?.nickname ?? "상대방"}님과 인연이 이어졌습니다! 채팅을 시작해보세요 💬`
+                  : `${profileB?.nickname ?? "상대방"}님과 서로 통했습니다! 채팅을 시작해보세요 💬`,
+              },
+              {
+                userId: match.receiverId,
+                type: "SYSTEM",
+                title: isSubthreshold ? "인연이 이어졌습니다! 🎉" : "매칭 성사! 🎉",
+                content: isSubthreshold
+                  ? `${profileA?.nickname ?? "상대방"}님이 인연 제안을 수락했어요! 채팅을 시작해보세요 💬`
+                  : `${profileA?.nickname ?? "상대방"}님이 수락했습니다! 채팅을 시작해보세요 💬`,
+              },
+            ],
+          });
         });
       }
     }
@@ -240,6 +268,7 @@ function formatMatches(
     score: number;
     breakdown: unknown;
     status: string;
+    matchType: string;
     createdAt: Date;
     receiver: {
       id: string;
@@ -254,11 +283,11 @@ function formatMatches(
   }>,
   _currentUserId: string,
   chatThreadMap: Map<string, string>,
+  _minScore = 0,
 ) {
   return {
     matches: matches.map((m) => {
       const profile = m.receiver.profile;
-      // 만 나이 계산 (생일 경과 여부 반영, Prisma dateOfBirth는 이미 Date 객체)
       let age: number | null = null;
       if (profile) {
         const today = new Date();
@@ -280,6 +309,7 @@ function formatMatches(
         score: m.breakdown,
         totalScore: m.score,
         status: m.status,
+        isSubthreshold: m.matchType === "SUBTHRESHOLD",
         chatThreadId: chatThreadMap.get(m.receiver.id) ?? null,
         createdAt: m.createdAt.toISOString(),
       };

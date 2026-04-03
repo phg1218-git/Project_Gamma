@@ -35,6 +35,7 @@ interface MatchData {
   };
   totalScore: number;
   status: string;
+  isSubthreshold: boolean;
   chatThreadId: string | null;
   createdAt: string;
 }
@@ -67,6 +68,7 @@ interface FilterViolation {
 interface SubthresholdRecommendation {
   id: string;
   score: number;
+  breakdown: unknown;
   myMinScore: number;
   violations: FilterViolation[];
   targetUser: {
@@ -305,6 +307,7 @@ export default function MatchesPage() {
           <MatchCard
             key={match.matchId}
             match={match}
+            isSubthreshold={match.isSubthreshold}
             onAccept={() => handleAction(match.matchId, "ACCEPTED")}
             onReject={() => handleAction(match.matchId, "REJECTED")}
             onViewProfile={() => handleViewProfile(match.userId)}
@@ -331,7 +334,9 @@ export default function MatchesPage() {
           onDismiss={handleRecDismiss}
           onDecline={() => handleRecAction("DECLINE")}
           onAccept={() => handleRecAction("ACCEPT")}
+          onViewProfile={() => handleViewProfile(recommendation.targetUser.id)}
           acting={recActing}
+          profileLoading={profileLoading}
         />
       )}
 
@@ -359,6 +364,7 @@ export default function MatchesPage() {
 // ── Match Card Component ──
 function MatchCard({
   match,
+  isSubthreshold = false,
   onAccept,
   onReject,
   onViewProfile,
@@ -367,6 +373,7 @@ function MatchCard({
   profileLoading,
 }: {
   match: MatchData;
+  isSubthreshold?: boolean;
   onAccept: () => void;
   onReject: () => void;
   onViewProfile: () => void;
@@ -377,12 +384,21 @@ function MatchCard({
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   return (
-    <div className="card-romantic overflow-hidden">
+    <div className={`overflow-hidden rounded-2xl shadow-sm border ${isSubthreshold ? "border-violet-200" : "border-pink-100 bg-white"}`}>
       {/* Score Header */}
-      <div className="bg-gradient-pink px-4 py-3 flex items-center justify-between">
+      <div className={`px-4 py-3 flex items-center justify-between ${isSubthreshold ? "bg-gradient-to-r from-violet-500 to-purple-500" : "bg-gradient-pink"}`}>
         <div className="flex items-center gap-2 text-white">
-          <Heart size={16} fill="white" strokeWidth={0} />
-          <span className="text-sm font-medium">호환도</span>
+          {isSubthreshold ? (
+            <>
+              <Sparkles size={15} fill="white" strokeWidth={0} />
+              <span className="text-sm font-medium">인연 제안</span>
+            </>
+          ) : (
+            <>
+              <Heart size={16} fill="white" strokeWidth={0} />
+              <span className="text-sm font-medium">호환도</span>
+            </>
+          )}
         </div>
         <span className="text-xl font-bold text-white">
           {match.totalScore.toFixed(1)}점
@@ -447,7 +463,7 @@ function MatchCard({
         )}
 
         {/* Action Buttons */}
-        {match.status === "PENDING" && (
+        {match.status === "PENDING" && !isSubthreshold && (
           <div className="flex gap-2">
             <button
               onClick={onReject}
@@ -460,13 +476,47 @@ function MatchCard({
             </button>
           </div>
         )}
-        {match.status === "ACCEPTED" && onChatStart && (
+        {match.status === "PENDING" && isSubthreshold && (
+          <div className="space-y-2">
+            <div className="flex items-start gap-2 px-1 pb-1">
+              <Sparkles size={13} className="text-violet-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-violet-500 leading-relaxed">
+                기준 점수에 미치지 못하지만 먼저 용기 내어 제안했어요. 대화를 나눠볼까요?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={onReject}
+                className="flex-1 py-3 rounded-xl border border-violet-200 text-sm font-medium text-violet-400 hover:bg-violet-50 active:bg-violet-100 transition-colors"
+              >
+                넘기기
+              </button>
+              <button
+                onClick={onAccept}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all"
+              >
+                <Sparkles size={14} />
+                인연 맺기
+              </button>
+            </div>
+          </div>
+        )}
+        {match.status === "ACCEPTED" && onChatStart && !isSubthreshold && (
           <button
             onClick={onChatStart}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-pink text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all"
           >
             <MessageCircle size={15} />
             서로 통했습니다! 채팅을 시작해보세요
+          </button>
+        )}
+        {match.status === "ACCEPTED" && onChatStart && isSubthreshold && (
+          <button
+            onClick={onChatStart}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-sm font-medium text-white hover:brightness-105 active:brightness-95 transition-all"
+          >
+            <Sparkles size={15} />
+            인연이 이어졌습니다! 채팅을 시작해보세요
           </button>
         )}
         {match.status === "ACCEPTED" && !onChatStart && (
@@ -541,7 +591,7 @@ function ProfileModal({
   const residence = parseLocation(profile.residenceLocation);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={onClose}>
       <div
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -668,17 +718,22 @@ function RecommendationModal({
   onDismiss,
   onDecline,
   onAccept,
+  onViewProfile,
   acting,
+  profileLoading,
 }: {
   recommendation: SubthresholdRecommendation;
   onDismiss: () => void;
   onDecline: () => void;
   onAccept: () => void;
+  onViewProfile: () => void;
   acting: boolean;
+  profileLoading: boolean;
 }) {
   const { targetUser, score, myMinScore, violations } = recommendation;
   const diff = myMinScore - score;
   const hasViolations = violations && violations.length > 0;
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
@@ -687,9 +742,18 @@ function RecommendationModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-pink px-5 py-4 flex items-center gap-2">
-          <Sparkles size={18} className="text-white" />
-          <span className="text-white font-semibold text-sm">이런 분은 어떠세요?</span>
+        <div className="bg-gradient-pink px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-white" />
+            <span className="text-white font-semibold text-sm">이런 분은 어떠세요?</span>
+          </div>
+          <button
+            onClick={onDismiss}
+            aria-label="닫기"
+            className="p-1 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"
+          >
+            <X size={18} className="text-white" />
+          </button>
         </div>
 
         <div className="p-5">
@@ -746,7 +810,7 @@ function RecommendationModal({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
               <span className="flex items-center gap-1">
                 <Briefcase size={12} />
                 {JOB_CATEGORY_LABELS[targetUser.jobCategory] || targetUser.jobCategory}
@@ -759,7 +823,7 @@ function RecommendationModal({
 
             {/* 취미 */}
             {targetUser.hobbies.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {targetUser.hobbies.slice(0, 4).map((h) => (
                   <span
                     key={h}
@@ -768,6 +832,35 @@ function RecommendationModal({
                     {h}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {/* 프로필 보기 + 점수 상세 토글 */}
+            <div className="flex items-center gap-3 pt-1 border-t border-pink-50">
+              <button
+                onClick={onViewProfile}
+                disabled={profileLoading}
+                className="flex items-center gap-1 text-xs text-primary font-medium disabled:opacity-50"
+              >
+                <User size={13} />
+                프로필 보기
+              </button>
+              <button
+                onClick={() => setShowBreakdown((v) => !v)}
+                className="flex items-center gap-1 text-xs text-primary font-medium"
+              >
+                점수 상세
+                {showBreakdown ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            </div>
+
+            {/* 점수 상세 */}
+            {showBreakdown && (recommendation.breakdown as Record<string, number>) && (
+              <div className="space-y-2 mt-3">
+                <ScoreDots label="설문 유사도" value={(recommendation.breakdown as Record<string, number>).surveySimilarity ?? 0} max={45} description="연애관·갈등 해결·소통 방식의 유사도" />
+                <ScoreDots label="라이프스타일" value={(recommendation.breakdown as Record<string, number>).lifestyle ?? 0} max={25} description="주말 활동·취침 시간·소비 성향·청결도" />
+                <ScoreDots label="가치관 일치" value={(recommendation.breakdown as Record<string, number>).valueAlignment ?? 0} max={20} description="결혼·자녀 계획·커리어 방향성" />
+                <ScoreDots label="성격 호환" value={(recommendation.breakdown as Record<string, number>).personality ?? 0} max={10} description="내외향성·즉흥성·도전 성향·유머 스타일" />
               </div>
             )}
           </div>

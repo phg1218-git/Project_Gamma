@@ -29,23 +29,36 @@ export async function GET(
       return NextResponse.json({ error: "본인 프로필은 /api/profile을 사용하세요." }, { status: 400 });
     }
 
-    // Verify an active match exists between the two users (PENDING or ACCEPTED only)
-    const match = await prisma.match.findFirst({
-      where: {
-        status: { in: ["PENDING", "ACCEPTED"] },
-        OR: [
-          { senderId: currentUserId, receiverId: userId },
-          { senderId: userId, receiverId: currentUserId },
-        ],
-      },
-      select: { status: true },
-    });
+    // Verify an active match OR active subthreshold recommendation exists
+    const [match, subRec] = await Promise.all([
+      prisma.match.findFirst({
+        where: {
+          status: { in: ["PENDING", "ACCEPTED"] },
+          OR: [
+            { senderId: currentUserId, receiverId: userId },
+            { senderId: userId, receiverId: currentUserId },
+          ],
+        },
+        select: { status: true },
+      }),
+      prisma.subthresholdRecommendation.findFirst({
+        where: {
+          status: { in: ["SHOWN", "PENDING_B", "ACCEPTED"] },
+          expiresAt: { gt: new Date() },
+          OR: [
+            { fromUserId: currentUserId, toUserId: userId },
+            { fromUserId: userId, toUserId: currentUserId },
+          ],
+        },
+        select: { id: true },
+      }),
+    ]);
 
-    if (!match) {
+    if (!match && !subRec) {
       return NextResponse.json({ error: "매칭된 상대만 조회할 수 있습니다." }, { status: 403 });
     }
 
-    const isAccepted = match.status === "ACCEPTED";
+    const isAccepted = match?.status === "ACCEPTED";
 
     const profile = await prisma.profile.findUnique({
       where: { userId },

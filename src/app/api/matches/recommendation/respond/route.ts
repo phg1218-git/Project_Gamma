@@ -47,14 +47,13 @@ export async function POST(req: NextRequest) {
     const score = rec.score;
     const breakdown = rec.breakdown as Record<string, number>;
 
-    // 관련 알림 읽음 처리 (actionPayload.recommendationId 기준)
+    // 관련 알림 읽음 처리 + actionType 초기화 (버튼 재노출 방지)
     await prisma.notification.updateMany({
       where: {
         userId: userBId,
-        actionType: "MATCH_REQUEST",
-        isRead: false,
+        actionType: { in: ["MATCH_REQUEST", "SUBTHRESHOLD_REQUEST"] },
       },
-      data: { isRead: true, readAt: new Date() },
+      data: { isRead: true, readAt: new Date(), actionType: null },
     });
 
     // ── 거절 ─────────────────────────────────────────────────
@@ -93,6 +92,7 @@ export async function POST(req: NextRequest) {
           score,
           breakdown,
           status: "ACCEPTED",
+          matchType: "SUBTHRESHOLD",
         },
         update: { status: "ACCEPTED", score, breakdown },
       });
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
           score,
           breakdown,
           status: "ACCEPTED",
+          matchType: "SUBTHRESHOLD",
         },
         update: { status: "ACCEPTED", score, breakdown },
       });

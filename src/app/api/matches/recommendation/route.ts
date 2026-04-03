@@ -353,7 +353,8 @@ export async function POST(req: NextRequest) {
         userId,
         rec.toUserId,
         matchScore,
-        rec.breakdown as Record<string, number>
+        rec.breakdown as Record<string, number>,
+        true
       );
 
       await prisma.subthresholdRecommendation.update({
@@ -381,9 +382,9 @@ export async function POST(req: NextRequest) {
       data: {
         userId: rec.toUserId,
         type: "SYSTEM",
-        title: "매칭 요청이 도착했습니다",
-        content: `${senderNickname}님이 대화를 희망합니다. 상대의 기준 점수보다는 낮지만(${matchScore.toFixed(1)}점), 대화를 원하고 있어요. 수락하시겠습니까?`,
-        actionType: "MATCH_REQUEST",
+        title: "인연 제안이 도착했어요",
+        content: `${senderNickname}님이 직접 인연을 제안했어요.\n기준 점수(${matchScore.toFixed(1)}점)에는 미치지 못하지만, 용기 내어 먼저 연락했답니다.\n대화를 나눠보시겠어요?`,
+        actionType: "SUBTHRESHOLD_REQUEST",
         actionPayload: { recommendationId },
       },
     });
@@ -400,10 +401,13 @@ async function createChatAndNotify(
   userAId: string,
   userBId: string,
   score: number,
-  breakdown: Record<string, number>
+  breakdown: Record<string, number>,
+  isSubthreshold = false
 ): Promise<string> {
   return await prisma.$transaction(async (tx) => {
     // Match 레코드 upsert (양방향)
+    const matchType = isSubthreshold ? "SUBTHRESHOLD" : "REGULAR";
+
     const matchA = await tx.match.upsert({
       where: { senderId_receiverId: { senderId: userAId, receiverId: userBId } },
       create: {
@@ -412,6 +416,7 @@ async function createChatAndNotify(
         score,
         breakdown,
         status: "ACCEPTED",
+        matchType,
       },
       update: { status: "ACCEPTED", score, breakdown },
     });
@@ -424,6 +429,7 @@ async function createChatAndNotify(
         score,
         breakdown,
         status: "ACCEPTED",
+        matchType,
       },
       update: { status: "ACCEPTED", score, breakdown },
     });
@@ -455,8 +461,10 @@ async function createChatAndNotify(
         {
           userId: userBId,
           type: "SYSTEM",
-          title: "새로운 매칭!",
-          content: `${profileA?.nickname ?? "상대방"}님이 매칭을 요청하여 채팅방이 생성되었습니다. 지금 대화해보세요! 💬`,
+          title: isSubthreshold ? "인연 제안으로 채팅이 시작됐어요" : "새로운 매칭!",
+          content: isSubthreshold
+            ? `${profileA?.nickname ?? "상대방"}님이 직접 인연을 제안해 채팅방이 만들어졌어요.\n점수 기준과 달라도 좋은 인연이 될 수 있답니다. 지금 대화해보세요! 💬`
+            : `${profileA?.nickname ?? "상대방"}님이 매칭을 요청하여 채팅방이 생성되었습니다. 지금 대화해보세요! 💬`,
         },
       ],
     });
