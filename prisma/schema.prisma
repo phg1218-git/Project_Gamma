@@ -133,6 +133,16 @@ model Match {
   @@index([score])
 }
 
+// 관리자가 전역으로 하드필터를 ON/OFF 하는 단일 행 설정 테이블 (id=1 고정)
+model MatchingConfig {
+  id              Int      @id @default(1)
+  filterSmoker    Boolean  @default(true)   // 흡연자 필터
+  filterDrinker   Boolean  @default(true)   // 과음자 필터
+  filterReligion  Boolean  @default(true)   // 종교차이 필터
+  filterDistance  Boolean  @default(true)   // 장거리 필터
+  updatedAt       DateTime @updatedAt
+}
+
 model ChatThread {
   id           String    @id @default(cuid())
   matchId      String    @unique

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { passesHardFilters } from "./filters";
+import { passesHardFilters, DEFAULT_FILTER_CONFIG, type FilterConfig } from "./filters";
 import { computeCompatibilityScore, type ScoreBreakdown } from "./scoring";
 
 /**
@@ -135,12 +135,16 @@ export async function findMatches(
   // 3. Apply hard filters (양방향: 내가 상대 조건도 통과 + 상대가 내 조건도 통과)
   const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
 
+  // 관리자 전역 필터 설정 로드
+  const configRow = await prisma.matchingConfig.findUnique({ where: { id: 1 } });
+  const filterConfig: FilterConfig = configRow ?? DEFAULT_FILTER_CONFIG;
+
   const filteredCandidates = candidates.filter((candidate) => {
     if (!candidate.profile || !candidate.surveyResponse) return false;
 
-    // 기본 하드 필터
-    if (!passesHardFilters(user.profile!, candidate.profile)) return false;
-    if (!passesHardFilters(candidate.profile, user.profile!)) return false;
+    // 기본 하드 필터 (관리자 config 적용)
+    if (!passesHardFilters(user.profile!, candidate.profile, filterConfig)) return false;
+    if (!passesHardFilters(candidate.profile, user.profile!, filterConfig)) return false;
 
     // 나이차 필터 (양방향)
     const userAge = calculateAge(user.profile!.dateOfBirth);

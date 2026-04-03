@@ -10,20 +10,35 @@ import { parseLocation } from "@/lib/utils";
  * Hard Filter Pipeline:
  *   1. stopMatching = false (both users must be active)
  *   2. Gender compatibility (opposite gender matching)
- *   3. Dealbreaker conditions check
- *   4. Optional: location compatibility
+ *   3. Dealbreaker conditions check (관리자 전역 설정으로 개별 필터 비활성화 가능)
  */
+
+export interface FilterConfig {
+  filterSmoker: boolean;   // 흡연자 필터 활성 여부
+  filterDrinker: boolean;  // 과음자 필터 활성 여부
+  filterReligion: boolean; // 종교차이 필터 활성 여부
+  filterDistance: boolean; // 장거리 필터 활성 여부
+}
+
+export const DEFAULT_FILTER_CONFIG: FilterConfig = {
+  filterSmoker: true,
+  filterDrinker: true,
+  filterReligion: true,
+  filterDistance: true,
+};
 
 /**
  * Check if a candidate passes all hard filters for a given user.
  *
- * @param userProfile - The requesting user's profile
+ * @param userProfile      - The requesting user's profile
  * @param candidateProfile - The candidate being evaluated
+ * @param config           - Admin-controlled global filter toggles
  * @returns true if candidate passes all filters, false if eliminated
  */
 export function passesHardFilters(
   userProfile: Profile,
   candidateProfile: Profile,
+  config: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): boolean {
   // 1. Both users must be actively matching
   if (userProfile.stopMatching || candidateProfile.stopMatching) {
@@ -40,8 +55,8 @@ export function passesHardFilters(
     return false;
   }
 
-  // 4. Dealbreaker conditions
-  if (!passesDealbreakers(userProfile, candidateProfile)) {
+  // 4. Dealbreaker conditions (config로 비활성화 가능)
+  if (!passesDealbreakers(userProfile, candidateProfile, config)) {
     return false;
   }
 
@@ -50,33 +65,33 @@ export function passesHardFilters(
 
 /**
  * Check dealbreaker conditions.
- *
- * Maps dislikedConditions strings to actual profile checks.
- * Each condition checks a specific attribute of the candidate.
+ * config에서 false인 필터는 해당 조건이 있어도 통과시킨다.
  */
 function passesDealbreakers(
   userProfile: Profile,
   candidateProfile: Profile,
+  config: FilterConfig,
 ): boolean {
   const disliked = userProfile.dislikedConditions;
 
   for (const condition of disliked) {
     switch (condition) {
       case "흡연자":
-        if (candidateProfile.smoking === "OFTEN" || candidateProfile.smoking === "SOMETIMES") {
+        if (config.filterSmoker &&
+            (candidateProfile.smoking === "OFTEN" || candidateProfile.smoking === "SOMETIMES")) {
           return false;
         }
         break;
 
       case "과음자":
-        if (candidateProfile.drinking === "OFTEN") {
+        if (config.filterDrinker && candidateProfile.drinking === "OFTEN") {
           return false;
         }
         break;
 
       case "종교차이":
-        // Different religion is a dealbreaker (except NONE matches anything)
         if (
+          config.filterReligion &&
           userProfile.religion !== "NONE" &&
           candidateProfile.religion !== "NONE" &&
           userProfile.religion !== candidateProfile.religion
@@ -86,14 +101,11 @@ function passesDealbreakers(
         break;
 
       case "장거리":
-        // Check if residence locations are in different provinces
-        if (!isSameProvince(userProfile.residenceLocation, candidateProfile.residenceLocation)) {
+        if (config.filterDistance &&
+            !isSameProvince(userProfile.residenceLocation, candidateProfile.residenceLocation)) {
           return false;
         }
         break;
-
-      // Other conditions are preference-based, not hard dealbreakers
-      // They could be factored into soft scoring instead
     }
   }
 
