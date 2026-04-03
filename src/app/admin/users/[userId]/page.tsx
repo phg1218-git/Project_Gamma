@@ -172,7 +172,7 @@ function ProfileTab({ user }: { user: UserDetail }) {
   return (
     <div>
       {/* 프로필 사진 라이트박스 */}
-      {lightbox && p.profileImage && (
+      {lightbox && !!p.profileImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
           onClick={() => setLightbox(false)}
