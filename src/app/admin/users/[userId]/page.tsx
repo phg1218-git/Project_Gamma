@@ -166,10 +166,33 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 
 function ProfileTab({ user }: { user: UserDetail }) {
   const p = user.profile as Record<string, unknown>;
+  const [lightbox, setLightbox] = useState(false);
   if (!p) return <p className="text-slate-400">프로필이 없습니다.</p>;
 
   return (
     <div>
+      {/* 프로필 사진 라이트박스 */}
+      {lightbox && p.profileImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightbox(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={p.profileImage as string}
+            alt="프로필 사진 원본"
+            className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-4 right-4 text-white text-2xl font-bold hover:opacity-70"
+            onClick={() => setLightbox(false)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 프로필 사진 */}
       <div className="mb-4 flex items-center gap-3 pb-4 border-b border-slate-100">
         {p.profileImage ? (
@@ -178,7 +201,7 @@ function ProfileTab({ user }: { user: UserDetail }) {
             src={p.profileImage as string}
             alt="프로필 사진"
             className="h-20 w-20 rounded-full object-cover border border-slate-200 cursor-pointer hover:opacity-90"
-            onClick={() => window.open(p.profileImage as string, "_blank")}
+            onClick={() => setLightbox(true)}
           />
         ) : (
           <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center">
