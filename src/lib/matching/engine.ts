@@ -96,14 +96,20 @@ export async function findMatches(
     throw new Error("프로필과 설문을 모두 완료해야 매칭이 가능합니다.");
   }
 
-  // 2-a. 이미 거부하거나 매칭 완료된 상대 ID 수집 (재노출 방지)
+  // 2-a. 재노출 방지 대상 수집
+  //   - 내가 거부 또는 수락 완료한 상대 → 영구 제외
+  //   - 나를 거부한 상대 → 영구 제외
+  //   - 최근 3일 이내에 EXPIRED된 상대 → 다다음 사이클부터 재노출 (자동 만료 쿨다운)
+  const THREE_DAYS_AGO = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
   const excludedMatches = await prisma.match.findMany({
     where: {
       OR: [
-        // 내가 거부했거나 수락 완료된 상대 (MATCHED enum 없음 → ACCEPTED 사용)
         { senderId: userId, status: { in: ["REJECTED", "ACCEPTED"] } },
-        // 나를 거부한 상대
         { receiverId: userId, status: "REJECTED" },
+        // 자동 만료 쿨다운: 방금 만료된 상대는 3일간 재노출 금지
+        { senderId: userId, status: "EXPIRED", updatedAt: { gt: THREE_DAYS_AGO } },
+        { receiverId: userId, status: "EXPIRED", updatedAt: { gt: THREE_DAYS_AGO } },
       ],
     },
     select: { senderId: true, receiverId: true },
