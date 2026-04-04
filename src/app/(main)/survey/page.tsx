@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Heart, ChevronRight, ChevronLeft, Save, CheckCircle } from "lucide-react";
-import { SURVEY_CATEGORIES, SURVEY_QUESTIONS, getQuestionsByCategory, type SurveyQuestion } from "@/constants/survey-questions";
+import {
+  SURVEY_CATEGORIES,
+  SURVEY_QUESTIONS,
+  getQuestionsByCategory,
+  getEssentialQuestions,
+  type SurveyQuestion
+} from "@/constants/survey-questions";
 
 const DRAFT_KEY = "survey_draft";
 
@@ -40,7 +46,9 @@ function loadDraftSavedAt(): string | null {
  */
 export default function SurveyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
+  const [surveyMode, setSurveyMode] = useState<"quick" | "full">("quick");
 
   // Initialize answers from localStorage draft (synchronous, before effects run)
   const [answers, setAnswers] = useState<Record<string, number | string | string[]>>(
@@ -56,9 +64,21 @@ export default function SurveyPage() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverLoadDone = useRef(false);
 
-  const categories = [...SURVEY_CATEGORIES];
+  // Detect mode from URL parameters
+  useEffect(() => {
+    const mode = searchParams.get("mode");
+    if (mode === "full") {
+      setSurveyMode("full");
+    } else {
+      setSurveyMode("quick");
+    }
+  }, [searchParams]);
+
+  // Filter questions by mode
+  const allQuestions = surveyMode === "quick" ? getEssentialQuestions() : SURVEY_QUESTIONS;
+  const categories = [...new Set(allQuestions.map(q => SURVEY_CATEGORIES.find(c => c.id === q.category)!))];
   const currentCategory = categories[currentStep];
-  const questions = getQuestionsByCategory(currentCategory.id);
+  const questions = allQuestions.filter(q => q.category === currentCategory.id);
   const progress = ((currentStep + 1) / categories.length) * 100;
 
   // 페이지 이동 시 맨 위로 스크롤
@@ -207,7 +227,13 @@ export default function SurveyPage() {
       }
 
       clearDraft();
-      router.push("/matches");
+
+      // Redirect based on mode
+      if (surveyMode === "quick") {
+        router.push("/matches?firstTime=true");
+      } else {
+        router.push("/matches");
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -233,6 +259,18 @@ export default function SurveyPage() {
 
   return (
     <div className="animate-fade-in pb-24">
+      {/* Mode Indicator Banner */}
+      {surveyMode === "quick" && (
+        <div className="card-romantic p-4 mb-4 bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
+          <p className="text-sm text-center mb-1">
+            ⚡️ <strong>빠른 설문</strong>으로 시작하고 있어요
+          </p>
+          <p className="text-xs text-muted-foreground text-center">
+            10개 필수 질문만 답하면 바로 매칭 결과를 확인할 수 있습니다!
+          </p>
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">

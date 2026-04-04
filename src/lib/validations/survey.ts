@@ -52,8 +52,8 @@ function buildSurveySchema() {
         break;
     }
 
-    // Required fields are non-optional
-    if (question.required) {
+    // Essential tier questions are required, optional tier can be skipped
+    if (question.tier === "essential") {
       shape[question.id] = fieldSchema;
     } else {
       shape[question.id] = fieldSchema.optional();

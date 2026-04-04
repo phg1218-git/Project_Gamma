@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Heart, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp,
   User, X, Brain, Droplet, Church, Wine, Cigarette, Ruler, Star,
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { JOB_CATEGORY_LABELS, BLOOD_TYPE_LABELS, RELIGION_LABELS, DRINKING_LABELS, SMOKING_LABELS } from "@/constants/enums";
 import { calculateAge, parseLocation } from "@/lib/utils";
+import { getCompletionRate } from "@/constants/survey-questions";
 
 /**
  * Matches Page
@@ -89,6 +90,7 @@ interface SubthresholdRecommendation {
 
 export default function MatchesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,6 +103,8 @@ export default function MatchesPage() {
   const [recommendation, setRecommendation] = useState<SubthresholdRecommendation | null>(null);
   const [recLoading, setRecLoading] = useState(false);
   const [recActing, setRecActing] = useState(false);
+  const [completionRate, setCompletionRate] = useState<number | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   async function handleViewProfile(userId: string) {
     setProfileLoading(true);
@@ -201,6 +205,33 @@ export default function MatchesPage() {
     fetchRecommendation();
   }, [fetchMatches]);
 
+  // Check survey completion rate
+  useEffect(() => {
+    async function checkSurveyCompletion() {
+      try {
+        const res = await fetch("/api/survey");
+        if (res.ok) {
+          const data = await res.json();
+          const rate = getCompletionRate(data?.answers || {});
+          setCompletionRate(rate);
+        }
+      } catch (error) {
+        console.error("Survey completion check failed:", error);
+      }
+    }
+    checkSurveyCompletion();
+  }, []);
+
+  // Check for first-time flag from quick survey completion
+  useEffect(() => {
+    const firstTime = searchParams.get("firstTime");
+    if (firstTime === "true") {
+      setShowWelcome(true);
+      // Remove the query param from URL
+      window.history.replaceState({}, "", "/matches");
+    }
+  }, [searchParams]);
+
   async function handleRefresh() {
     setRefreshing(true);
     try {
@@ -255,6 +286,28 @@ export default function MatchesPage() {
           <RefreshCw size={20} className={`text-primary ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
+
+      {/* Survey Completion Banner */}
+      {completionRate !== null && completionRate < 100 && (
+        <div className="card-romantic p-4 mb-6 bg-gradient-to-r from-amber-50 to-pink-50 border-amber-200">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm font-semibold mb-1">
+                🎯 매칭 정확도: <span className="text-primary">{completionRate}%</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                추가 질문을 완료하면 더 정확한 매칭이 가능해요
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push("/survey?mode=full")}
+            className="w-full mt-3 py-2.5 rounded-xl bg-gradient-pink text-sm font-medium text-white hover:brightness-105 transition-all"
+          >
+            ✨ 전체 설문 완료하고 정확도 높이기
+          </button>
+        </div>
+      )}
 
       {/* 서버 통신 오류 */}
       {fetchError && (
@@ -355,6 +408,39 @@ export default function MatchesPage() {
             className="max-w-full max-h-full rounded-2xl object-contain touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {/* First-time Welcome Modal */}
+      {showWelcome && completionRate !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold mb-3 text-center">🎉 매칭 시작!</h3>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              필수 질문만으로 매칭을 시작했어요.<br/>
+              현재 정확도는 <span className="font-bold text-primary">{completionRate}%</span>입니다.
+            </p>
+            <p className="text-xs text-muted-foreground mb-4 text-center">
+              추가 질문을 완료하면 더 잘 맞는 상대를 찾을 수 있어요!
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="flex-1 py-2.5 rounded-xl border border-pink-200 text-sm font-medium hover:bg-pink-50"
+              >
+                나중에
+              </button>
+              <button
+                onClick={() => {
+                  setShowWelcome(false);
+                  router.push("/survey?mode=full");
+                }}
+                className="flex-1 btn-gradient text-sm py-2.5"
+              >
+                지금 완료
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

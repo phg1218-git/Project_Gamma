@@ -339,7 +339,7 @@ export default function ProfileSetupPage() {
       // 설문 완료 여부 확인 후 분기
       const surveyCheck = await fetch("/api/survey");
       if (surveyCheck.status === 404) {
-        router.push("/survey");
+        router.push("/survey?mode=quick");
       } else {
         router.push("/profile");
       }

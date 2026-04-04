@@ -1,5 +1,6 @@
 import type { Profile } from "@prisma/client";
 import { parseLocation } from "@/lib/utils";
+import { isSameMetropolitanRegion } from "@/constants/locations";
 
 /**
  * 이어줌 — Hard Filters (Dealbreaker Logic)
@@ -102,7 +103,7 @@ function passesDealbreakers(
 
       case "장거리":
         if (config.filterDistance &&
-            !isSameProvince(userProfile.residenceLocation, candidateProfile.residenceLocation)) {
+            !isSameMetroRegion(userProfile.residenceLocation, candidateProfile.residenceLocation)) {
           return false;
         }
         break;
@@ -113,8 +114,24 @@ function passesDealbreakers(
 }
 
 /**
- * Check if two locations share the same province.
+ * Check if two locations are in the same metropolitan region.
  * Location format: "province|district"
+ *
+ * 광역권 예시:
+ * - 수도권: 서울/경기/인천
+ * - 영남권: 부산/울산/경남/경북/대구
+ * - 호남권: 광주/전남/전북
+ * - 충청권: 대전/세종/충남/충북
+ */
+function isSameMetroRegion(locationA: string, locationB: string): boolean {
+  const a = parseLocation(locationA);
+  const b = parseLocation(locationB);
+  return isSameMetropolitanRegion(a.province, b.province);
+}
+
+/**
+ * @deprecated Use isSameMetroRegion instead for better regional matching.
+ * Check if two locations share the same province.
  */
 function isSameProvince(locationA: string, locationB: string): boolean {
   const a = parseLocation(locationA);
@@ -125,20 +142,29 @@ function isSameProvince(locationA: string, locationB: string): boolean {
 /**
  * Optional: Check location compatibility with configurable strictness.
  * Not used as a hard filter by default, but available for future use.
+ *
+ * @param locationA - First location (province|district)
+ * @param locationB - Second location (province|district)
+ * @param mode - Compatibility mode:
+ *   - "metro": Same metropolitan region (default, most lenient)
+ *   - "province": Same province (stricter)
+ *   - "district": Same district (strictest)
  */
 export function checkLocationCompatibility(
   locationA: string,
   locationB: string,
-  strict: boolean = false,
+  mode: "metro" | "province" | "district" = "metro",
 ): boolean {
   const a = parseLocation(locationA);
   const b = parseLocation(locationB);
 
-  if (strict) {
-    // Same district required
-    return a.province === b.province && a.district === b.district;
+  switch (mode) {
+    case "district":
+      return a.province === b.province && a.district === b.district;
+    case "province":
+      return a.province === b.province;
+    case "metro":
+    default:
+      return isSameMetropolitanRegion(a.province, b.province);
   }
-
-  // Same province is sufficient
-  return a.province === b.province;
 }

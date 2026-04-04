@@ -91,3 +91,46 @@ export const PROVINCES = Object.keys(LOCATIONS);
 export function getDistricts(province: string): string[] {
   return LOCATIONS[province] || [];
 }
+
+/**
+ * 광역권 (Metropolitan Region) Grouping
+ *
+ * 지리적으로 인접하고 생활권이 유사한 지역을 그룹화.
+ * "장거리" 필터 적용 시 같은 광역권 내에서는 매칭 허용.
+ */
+export const METROPOLITAN_REGIONS: Record<string, string[]> = {
+  "수도권": ["서울특별시", "경기도", "인천광역시"],
+  "영남권": ["부산광역시", "울산광역시", "경상남도", "경상북도", "대구광역시"],
+  "호남권": ["광주광역시", "전라남도", "전라북도"],
+  "충청권": ["대전광역시", "세종특별자치시", "충청남도", "충청북도"],
+  "강원권": ["강원도"],
+  "제주권": ["제주특별자치도"],
+};
+
+/**
+ * Get the metropolitan region for a given province.
+ * @param province - 시/도 이름
+ * @returns 광역권 이름 (예: "수도권", "영남권")
+ */
+export function getMetropolitanRegion(province: string): string | null {
+  for (const [region, provinces] of Object.entries(METROPOLITAN_REGIONS)) {
+    if (provinces.includes(province)) {
+      return region;
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if two provinces are in the same metropolitan region.
+ * @param provinceA - 첫 번째 시/도
+ * @param provinceB - 두 번째 시/도
+ * @returns true if same region, false otherwise
+ */
+export function isSameMetropolitanRegion(provinceA: string, provinceB: string): boolean {
+  const regionA = getMetropolitanRegion(provinceA);
+  const regionB = getMetropolitanRegion(provinceB);
+
+  if (!regionA || !regionB) return false;
+  return regionA === regionB;
+}

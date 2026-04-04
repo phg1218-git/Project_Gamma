@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { passesHardFilters, DEFAULT_FILTER_CONFIG, type FilterConfig } from "./filters";
 import { computeCompatibilityScore, type ScoreBreakdown } from "./scoring";
+import { isQuickSurveyComplete } from "@/constants/survey-questions";
 
 /**
  * 나이 계산 헬퍼 함수
@@ -96,6 +97,12 @@ export async function findMatches(
     throw new Error("프로필과 설문을 모두 완료해야 매칭이 가능합니다.");
   }
 
+  // Check essential questions are answered (quick survey minimum)
+  const userAnswers = user.surveyResponse.answers as Record<string, unknown>;
+  if (!isQuickSurveyComplete(userAnswers)) {
+    throw new Error("필수 설문 항목을 완료해주세요.");
+  }
+
   // 2-a. 재노출 방지 대상 수집
   //   - 내가 거부 또는 수락 완료한 상대 → 영구 제외
   //   - 나를 거부한 상대 → 영구 제외
@@ -139,7 +146,7 @@ export async function findMatches(
   });
 
   // 3. Apply hard filters (양방향: 내가 상대 조건도 통과 + 상대가 내 조건도 통과)
-  const userAnswers = user.surveyResponse.answers as Record<string, number | string | string[]>;
+  const userAnswersTyped = userAnswers as Record<string, number | string | string[]>;
 
   // 관리자 전역 필터 설정 로드
   const configRow = await prisma.matchingConfig.findUnique({ where: { id: 1 } });
@@ -157,7 +164,7 @@ export async function findMatches(
     const candidateAge = calculateAge(candidate.profile.dateOfBirth);
 
     // 내가 설정한 나이차 범위 내에 상대방이 있는지 확인
-    if (!passesAgeGapFilter(userAnswers, userAge, candidateAge)) return false;
+    if (!passesAgeGapFilter(userAnswersTyped, userAge, candidateAge)) return false;
 
     // 상대방이 설정한 나이차 범위 내에 내가 있는지 확인
     const candidateAnswers = candidate.surveyResponse.answers as Record<string, number | string | string[]>;
@@ -173,7 +180,7 @@ export async function findMatches(
       string,
       number | string | string[]
     >;
-    const score = computeCompatibilityScore(userAnswers, candidateAnswers);
+    const score = computeCompatibilityScore(userAnswersTyped, candidateAnswers);
     const profile = candidate.profile!;
 
     // Calculate age dynamically (만 나이, 생일 경과 여부 반영)
