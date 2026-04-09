@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
+import MobileNativeBridgeProvider from "@/components/MobileNativeBridgeProvider";
 import "./globals.css";
 
 /**
@@ -84,7 +85,10 @@ export default function RootLayout({
   return (
     <html lang="ko" className={notoSansKR.variable}>
       <body className="min-h-screen">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <MobileNativeBridgeProvider />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
