@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { findMatches, saveMatchResults } from "@/lib/matching/engine";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Matches API Routes
@@ -226,6 +227,21 @@ export async function PATCH(request: Request) {
               },
             ],
           });
+        });
+
+        // 매칭 성사 푸시 (트랜잭션 완료 후 — fire-and-forget)
+        const matchTitle = isSubthreshold ? "인연이 이어졌습니다! 🎉" : "매칭 성사! 🎉";
+        sendPushToUser(match.senderId, {
+          title: matchTitle,
+          body: `${profileB?.nickname ?? "상대방"}님과 채팅을 시작해보세요 💬`,
+          path: "/matches",
+          type: "match",
+        });
+        sendPushToUser(match.receiverId, {
+          title: matchTitle,
+          body: `${profileA?.nickname ?? "상대방"}님과 채팅을 시작해보세요 💬`,
+          path: "/matches",
+          type: "match",
         });
       }
     }

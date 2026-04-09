@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_COOKIE_NAME } from "@/lib/admin/jwt";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Admin Notifications API
@@ -78,6 +79,10 @@ export async function POST(req: NextRequest) {
       await prisma.notification.createMany({
         data: users.map((u) => ({ userId: u.id, type, title, content })),
       });
+      // 전체 푸시 발송 (fire-and-forget)
+      users.forEach((u) =>
+        sendPushToUser(u.id, { title, body: content, path: "/notifications", type: "notice", notifType: type })
+      );
       return NextResponse.json({ success: true, message: `${users.length}명에게 알림을 전송했습니다.` });
     }
 
@@ -89,6 +94,11 @@ export async function POST(req: NextRequest) {
     await prisma.notification.createMany({
       data: userIds.map((uid: string) => ({ userId: uid, type, title, content })),
     });
+    // 선택 회원 푸시 발송 (fire-and-forget)
+    console.log("[Admin Notifications] 푸시 발송 대상 userIds:", userIds);
+    userIds.forEach((uid: string) =>
+      sendPushToUser(uid, { title, body: content, path: "/notifications", type: "notice", notifType: type })
+    );
 
     return NextResponse.json({
       success: true,

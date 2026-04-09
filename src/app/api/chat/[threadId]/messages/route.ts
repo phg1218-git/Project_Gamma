@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { messageSchema, messagePollSchema } from "@/lib/validations/chat";
 import { ZodError } from "zod";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Chat Messages API (Polling-based)
@@ -152,12 +153,19 @@ export async function POST(request: Request, context: RouteContext) {
     const { threadId } = await context.params;
     const userId = session.user.id;
 
-    // Verify user is a participant
+    // Verify user is a participant (닉네임도 함께 조회 — 푸시 발신자 이름에 사용)
     const thread = await prisma.chatThread.findFirst({
       where: {
         id: threadId,
         isActive: true,
         OR: [{ userAId: userId }, { userBId: userId }],
+      },
+      select: {
+        id: true,
+        userAId: true,
+        userBId: true,
+        userA: { select: { profile: { select: { nickname: true } } } },
+        userB: { select: { profile: { select: { nickname: true } } } },
       },
     });
 
@@ -182,6 +190,20 @@ export async function POST(request: Request, context: RouteContext) {
     await prisma.chatThread.update({
       where: { id: threadId },
       data: { updatedAt: new Date() },
+    });
+
+    // 수신자에게 푸시 발송 (fire-and-forget — 실패해도 응답에 영향 없음)
+    const isUserA = thread.userAId === userId;
+    const recipientId = isUserA ? thread.userBId : thread.userAId;
+    const senderNickname = isUserA
+      ? (thread.userA?.profile?.nickname ?? "상대방")
+      : (thread.userB?.profile?.nickname ?? "상대방");
+
+    sendPushToUser(recipientId, {
+      title: senderNickname,
+      body: content.length > 60 ? content.slice(0, 60) + "…" : content,
+      path: `/chat/${threadId}`,
+      type: "chat",
     });
 
     return NextResponse.json(

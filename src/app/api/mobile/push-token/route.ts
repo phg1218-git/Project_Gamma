@@ -29,11 +29,13 @@ const revokeSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
+    console.log("[push-token] POST called, session userId:", session?.user?.id ?? "NONE (401)");
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body   = await req.json();
+    console.log("[push-token] body platform:", body?.platform, "token preview:", String(body?.token ?? "").slice(0, 10));
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(

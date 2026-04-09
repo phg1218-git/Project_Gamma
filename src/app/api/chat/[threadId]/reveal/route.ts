@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Photo Reveal API
@@ -72,8 +73,8 @@ export async function POST(_request: Request, context: RouteContext) {
         OR: [{ userAId: userId }, { userBId: userId }],
       },
       include: {
-        userA: { include: { profile: { select: { profileImage: true } } } },
-        userB: { include: { profile: { select: { profileImage: true } } } },
+        userA: { include: { profile: { select: { profileImage: true, nickname: true } } } },
+        userB: { include: { profile: { select: { profileImage: true, nickname: true } } } },
       },
     });
 
@@ -98,6 +99,30 @@ export async function POST(_request: Request, context: RouteContext) {
 
     const partner = isUserA ? thread.userB : thread.userA;
     const partnerPhoto = bothRevealed ? (partner.profile?.profileImage ?? null) : null;
+
+    // 사진 공개 관련 푸시 (fire-and-forget)
+    const myNickname = isUserA
+      ? (thread.userA?.profile?.nickname ?? "상대방")
+      : (thread.userB?.profile?.nickname ?? "상대방");
+    const partnerId = isUserA ? thread.userBId : thread.userAId;
+
+    if (myReveal && bothRevealed) {
+      // 양쪽 모두 공개 완료 → 상대방에게 알림
+      sendPushToUser(partnerId, {
+        title: "사진이 공개됐어요! 📸",
+        body: `${myNickname}님도 사진 공개에 동의했어요. 지금 확인해보세요!`,
+        path: `/chat/${threadId}`,
+        type: "chat",
+      });
+    } else if (myReveal && !partnerReveal) {
+      // 내가 요청했고 상대방은 아직 → 상대방에게 요청 알림
+      sendPushToUser(partnerId, {
+        title: "사진 공개 요청",
+        body: `${myNickname}님이 사진 공개를 요청했어요. 동의하시겠어요?`,
+        path: `/chat/${threadId}`,
+        type: "chat",
+      });
+    }
 
     return NextResponse.json({ myReveal, partnerReveal, partnerPhoto });
   } catch (error) {
