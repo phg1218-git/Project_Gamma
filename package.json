@@ -42,6 +42,7 @@
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase-admin": "^13.7.0",
     "jose": "^6.2.2",
     "lucide-react": "^0.468.0",
     "next": "^15.1.6",
