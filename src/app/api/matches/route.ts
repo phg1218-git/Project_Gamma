@@ -188,6 +188,13 @@ export async function PATCH(request: Request) {
       if (reverseMatch) {
         const isSubthreshold = match.matchType === "SUBTHRESHOLD";
 
+        // 프로필은 읽기 전용이므로 트랜잭션 밖에서 미리 조회
+        // (sendPushToUser에서도 접근할 수 있도록 스코프를 분리)
+        const [profileA, profileB] = await Promise.all([
+          prisma.profile.findUnique({ where: { userId: match.senderId }, select: { nickname: true } }),
+          prisma.profile.findUnique({ where: { userId: match.receiverId }, select: { nickname: true } }),
+        ]);
+
         await prisma.$transaction(async (tx) => {
           const existingThread = await tx.chatThread.findUnique({
             where: { matchId: match.id },
@@ -201,11 +208,6 @@ export async function PATCH(request: Request) {
               },
             });
           }
-
-          const [profileA, profileB] = await Promise.all([
-            tx.profile.findUnique({ where: { userId: match.senderId }, select: { nickname: true } }),
-            tx.profile.findUnique({ where: { userId: match.receiverId }, select: { nickname: true } }),
-          ]);
 
           await tx.notification.createMany({
             data: [

@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-900">대시보드</h1>
+      <h1 className="mb-4 text-xl font-bold text-slate-900 md:mb-6 md:text-2xl">대시보드</h1>
 
       {error && (
         <p className="mb-4 text-sm text-red-600">{error}</p>

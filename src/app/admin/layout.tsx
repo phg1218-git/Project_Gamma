@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/admin/dashboard", label: "대시보드", icon: "BarChart3" },
@@ -13,7 +13,6 @@ const navItems = [
   { href: "/admin/matching-config", label: "매칭 필터 설정", icon: "Filter" },
 ];
 
-// Simple SVG icons to avoid extra dependencies
 function NavIcon({ icon }: { icon: string }) {
   switch (icon) {
     case "BarChart3":
@@ -57,16 +56,83 @@ function NavIcon({ icon }: { icon: string }) {
   }
 }
 
-export default function AdminLayout({
-  children,
+function SidebarContent({
+  pathname,
+  onNav,
+  loggingOut,
+  onLogout,
 }: {
-  children: React.ReactNode;
+  pathname: string;
+  onNav?: () => void;
+  loggingOut: boolean;
+  onLogout: () => void;
 }) {
+  return (
+    <>
+      <nav className="flex-1 space-y-1 p-3">
+        {navItems.map((item) => {
+          const active = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNav}
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <NavIcon icon={item.icon} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-slate-200 p-3 space-y-1">
+        <Link
+          href="/matches"
+          onClick={onNav}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-pink-500 hover:bg-pink-50 hover:text-pink-600"
+        >
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+          </svg>
+          이어줌으로 이동
+        </Link>
+        <button
+          onClick={onLogout}
+          disabled={loggingOut}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
+          {loggingOut ? "로그아웃 중..." : "로그아웃"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Don't show sidebar on login page
+  // 페이지 이동 시 드로어 닫기
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  // 드로어 열릴 때 body 스크롤 잠금
+  useEffect(() => {
+    document.body.style.overflow = drawerOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [drawerOpen]);
+
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
@@ -77,61 +143,74 @@ export default function AdminLayout({
     router.push("/admin/login");
   }
 
+  const currentNavLabel = navItems.find((item) => pathname.startsWith(item.href))?.label ?? "Admin";
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
-      <aside className="flex w-60 flex-col border-r border-slate-200 bg-white">
+      {/* ── Desktop sidebar ─────────────────────────────────── */}
+      <aside className="hidden md:flex w-60 flex-col border-r border-slate-200 bg-white">
         <div className="flex h-14 items-center border-b border-slate-200 px-4">
           <span className="text-lg font-bold text-slate-900">이어줌 Admin</span>
         </div>
-
-        <nav className="flex-1 space-y-1 p-3">
-          {navItems.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-slate-100 text-slate-900"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <NavIcon icon={item.icon} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-slate-200 p-3 space-y-1">
-          <Link
-            href="/matches"
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-pink-500 hover:bg-pink-50 hover:text-pink-600"
-          >
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-            </svg>
-            이어줌으로 이동
-          </Link>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-            {loggingOut ? "로그아웃 중..." : "로그아웃"}
-          </button>
-        </div>
+        <SidebarContent
+          pathname={pathname}
+          loggingOut={loggingOut}
+          onLogout={handleLogout}
+        />
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">{children}</div>
-      </main>
+      {/* ── Mobile drawer backdrop ───────────────────────────── */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile drawer ────────────────────────────────────── */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-xl transition-transform duration-300 md:hidden ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+          <span className="text-lg font-bold text-slate-900">이어줌 Admin</span>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <SidebarContent
+          pathname={pathname}
+          onNav={() => setDrawerOpen(false)}
+          loggingOut={loggingOut}
+          onLogout={handleLogout}
+        />
+      </aside>
+
+      {/* ── Main area ────────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* Mobile top bar */}
+        <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 md:hidden">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span className="text-base font-semibold text-slate-900">{currentNavLabel}</span>
+        </header>
+
+        <main className="flex-1 overflow-auto">
+          <div className="p-4 md:p-6">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }
